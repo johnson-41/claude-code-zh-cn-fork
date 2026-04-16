@@ -128,3 +128,107 @@ test("string translation must not rewrite identifiers or object keys across code
   assert.equal(patched.includes("bypass权限：{"), false, patched);
   assert.equal(patched.includes("autoAllowBashIf沙盒ed"), false, patched);
 });
+
+test("single-quoted and template literal command descriptions are translated", () => {
+  const patched = patchFixture([
+    'const updateConfig=\'Use this skill to configure the Claude Code harness via settings.json. Automated behaviors ("from now on when X", "each time X", "whenever X", "before/after X") require hooks configured in settings.json - the harness executes these, not Claude, so memory/preferences cannot fulfill them. Also use for: permissions ("allow X", "add permission", "move permission to"), env vars ("set X=Y"), hook troubleshooting, or any changes to settings.json/settings.local.json files. Examples: "allow npm commands", "add bq permission to global settings", "move permission to user settings", "set DEBUG=true", "when claude stops show X". For simple settings like theme/model, use Config tool.\';',
+    "const claudeApi=`Build, debug, and optimize Claude API / Anthropic SDK apps. Apps built with this skill should include prompt caching.\n`;",
+    "const model=`Set the AI model for Claude Code (currently ${lH(W5())})`;",
+    "const fast=`Toggle fast mode (${im} only)`;",
+    "",
+  ]);
+
+  assert.equal(
+    patched.includes("Use this skill to configure the Claude Code harness via settings.json."),
+    false,
+    patched
+  );
+  assert.equal(
+    patched.includes("Build, debug, and optimize Claude API / Anthropic SDK apps. Apps built with this skill should include prompt caching."),
+    false,
+    patched
+  );
+  assert.equal(
+    patched.includes("Set the AI model for Claude Code (currently ${lH(W5())})"),
+    false,
+    patched
+  );
+  assert.equal(
+    patched.includes("Toggle fast mode (${im} only)"),
+    false,
+    patched
+  );
+  assert.match(patched, /使用此技能通过 settings\.json 配置 Claude Code harness。/);
+  assert.match(patched, /构建、调试并优化 Claude API \/ Anthropic SDK 应用。使用此技能构建的应用应包含 prompt caching。/);
+  assert.match(patched, /设置 Claude Code 使用的 AI 模型（当前为 \$\{lH\(W5\(\)\)\}）/);
+  assert.match(patched, /切换快速模式（仅 \$\{im\}）/);
+});
+
+test("single-quoted literals with apostrophes are translated", () => {
+  const patched = patchFixture([
+    "const copy='Copy Claude\\'s last response to clipboard (or /copy N for the Nth-latest)';",
+    "",
+  ]);
+
+  assert.equal(
+    patched.includes("Copy Claude\\'s last response to clipboard (or /copy N for the Nth-latest)"),
+    false,
+    patched
+  );
+  assert.match(patched, /复制 Claude 的最后一次回复到剪贴板（或 \/copy N 复制第 N 条最近的回复）/);
+});
+
+test("single-quoted and template matches in comments or regex literals stay untouched", () => {
+  const patched = patchFixture([
+    "// `Toggle fast mode (${im} only)` should remain untouched in comments",
+    "// 'Use this skill to configure the Claude Code harness via settings.json.' should remain untouched in comments",
+    "const fastPattern=/`Toggle fast mode \\(\\$\\{im\\} only\\)`/;",
+    "const configPattern=/'Use this skill to configure the Claude Code harness via settings\\.json\\.'/;",
+    "const liveFast=`Toggle fast mode (${im} only)`;",
+    "const liveConfig='Use this skill to configure the Claude Code harness via settings.json.';",
+    "",
+  ]);
+
+  assert.match(patched, /\/\/ `Toggle fast mode \(\$\{im\} only\)` should remain untouched in comments/);
+  assert.match(
+    patched,
+    /\/\/ 'Use this skill to configure the Claude Code harness via settings\.json\.' should remain untouched in comments/
+  );
+  assert.equal(patched.includes("const fastPattern=/`Toggle fast mode \\(\\$\\{im\\} only\\)`/;"), true, patched);
+  assert.equal(
+    patched.includes(
+      "const configPattern=/'Use this skill to configure the Claude Code harness via settings\\.json\\.'/;"
+    ),
+    true,
+    patched
+  );
+  assert.match(patched, /切换快速模式（仅 \$\{im\}）/);
+  assert.match(patched, /使用此技能通过 settings\.json 配置 Claude Code harness。/);
+});
+
+test("template literals with embedded expressions keep expression structure", () => {
+  const patched = patchFixture([
+    'const key=`${z??""}:${q}`;',
+    'const auth=`Error: ${x6(err)||"Failed to authenticate"}`;',
+    'const version=`${{VERSION:"2.1.108",BUILD_TIME:"2026-04-14T17:18:04Z"}.VERSION} (Claude Code)`;',
+    'const model=`Set the AI model for Claude Code (currently ${currentModel()})`;',
+    "const fast=`Toggle fast mode (${im} only)`;",
+    "",
+  ]);
+
+  assert.equal(patched.includes('const key=`${z??""}:${q}`;'), true, patched);
+  assert.equal(
+    patched.includes('const auth=`Error: ${x6(err)||"Failed to authenticate"}`;'),
+    true,
+    patched
+  );
+  assert.equal(
+    patched.includes(
+      'const version=`${{VERSION:"2.1.108",BUILD_TIME:"2026-04-14T17:18:04Z"}.VERSION} (Claude Code)`;'
+    ),
+    true,
+    patched
+  );
+  assert.equal(patched.includes('const model=`设置 Claude Code 使用的 AI 模型（当前为 ${currentModel()}）`;'), true, patched);
+  assert.equal(patched.includes('const fast=`切换快速模式（仅 ${im}）`;'), true, patched);
+});
