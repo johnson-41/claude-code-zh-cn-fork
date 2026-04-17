@@ -1,6 +1,6 @@
 # Support Matrix
 
-> Generated from `scripts/upstream-compat.config.json` + `node scripts/verify-upstream-compat.js --json` on 2026-04-16.
+> Generated from `scripts/upstream-compat.config.json` + `node scripts/verify-upstream-compat.js --json` on 2026-04-17.
 
 ## Tier Definition
 
@@ -12,7 +12,7 @@
 
 | Channel | Tier | Version window | Representative verification | Notes |
 | --- | --- | --- | --- | --- |
-| npm global install | stable | 2.1.92 - 2.1.107 | 2.1.92 PASS · 2.1.97 PASS · 2.1.104 PASS · 2.1.107 PASS | PATH 优先 launcher + session-start 二层兜底，适用于 npm 全局安装。 |
+| npm global install | stable | 2.1.92 - 2.1.110 | 2.1.92 PASS · 2.1.97 PASS · 2.1.104 PASS · 2.1.107 PASS · 2.1.110 PASS | PATH 优先 launcher + session-start 二层兜底，适用于 npm 全局安装。 |
 | macOS official installer | experimental | 2.1.104 - 2.1.104 | 2.1.104 PASS | 依赖 native repack / session-start；prelaunch launcher 不覆盖原生二进制。 |
 | Linux official installer | unsupported | - | - | 当前不支持 Linux 官方安装器；请改用 npm 路径。 |
 
@@ -25,6 +25,7 @@
 | 2.1.104 | pass | 1431 | - |
 | 2.1.107 | pass | 1404 | - |
 | 2.1.110 | pass | 1394 | - |
+| 2.1.112 | pass | 1390 | - |
 
-Summary: 5 pass / 0 fail
+Summary: 6 pass / 0 fail
 

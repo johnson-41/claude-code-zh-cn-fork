@@ -1,7 +1,7 @@
 {
   "packageName": "@anthropic-ai/claude-code",
   "baseline": {
-    "versions": ["2.1.92", "2.1.97", "2.1.104", "2.1.107"],
+    "versions": ["2.1.92", "2.1.97", "2.1.104", "2.1.107", "2.1.110"],
     "includeLatestFromNpm": true
   },
   "checks": {
@@ -28,8 +28,8 @@
     "npm": {
       "stable": {
         "floor": "2.1.92",
-        "ceiling": "2.1.107",
-        "representatives": ["2.1.92", "2.1.97", "2.1.104", "2.1.107"],
+        "ceiling": "2.1.110",
+        "representatives": ["2.1.92", "2.1.97", "2.1.104", "2.1.107", "2.1.110"],
         "notes": "PATH 优先 launcher + session-start 二层兜底，适用于 npm 全局安装。"
       }
     },
