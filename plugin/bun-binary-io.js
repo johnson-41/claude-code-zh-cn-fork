@@ -114,8 +114,9 @@ function detectInstallation(claudeCmd) {
   try { realPath = fs.realpathSync(claudeCmd); } catch { return "unknown"; }
 
   // 2. 先判真实目标本身是不是 Bun 二进制（Codex 二审 #1）
+  //    PE 格式暂不支持 repack，跳过 CLI Patch（设置和 Hook 仍生效）
   const format = detectBinaryFormat(realPath);
-  if ((format === "MachO64" || format === "MachO32" || format === "PE" || format === "ELF") && hasBunTrailer(realPath)) {
+  if ((format === "MachO64" || format === "MachO32" || format === "ELF") && hasBunTrailer(realPath)) {
     return "native-bun:" + realPath;
   }
 
@@ -133,7 +134,7 @@ function detectInstallation(claudeCmd) {
     "node_modules/@anthropic-ai/claude-code/bin/claude.exe");
   if (fs.existsSync(npmExe)) {
     const exeFormat = detectBinaryFormat(npmExe);
-    if ((exeFormat === "PE" || exeFormat === "MachO64" || exeFormat === "MachO32" || exeFormat === "ELF") && hasBunTrailer(npmExe)) {
+    if ((exeFormat === "MachO64" || exeFormat === "MachO32" || exeFormat === "ELF") && hasBunTrailer(npmExe)) {
       return "native-bun:" + npmExe;
     }
   }
@@ -513,12 +514,14 @@ function repackELF(binPath, newBunBuffer, elfSectionOffset, sectionHeaderSize) {
   const backupPath = binPath + ".zh-cn-backup";
   const readSource = fs.existsSync(backupPath) ? backupPath : binPath;
   const fd = fs.openSync(readSource, "r");
-  const origHeader = Buffer.alloc(8);
-  fs.readSync(fd, origHeader, 0, 8, elfSectionOffset);
+  const origHeader = Buffer.alloc(sectionHeaderSize);
+  fs.readSync(fd, origHeader, 0, sectionHeaderSize, elfSectionOffset);
   fs.closeSync(fd);
 
-  const origDataSize = Number(origHeader.readBigUInt64LE(0));
-  const origSectionSize = 8 + origDataSize;
+  const origDataSize = sectionHeaderSize === 8
+    ? Number(origHeader.readBigUInt64LE(0))
+    : origHeader.readUInt32LE(0);
+  const origSectionSize = sectionHeaderSize + origDataSize;
 
   if (newSectionData.length > origSectionSize) {
     throw new Error(

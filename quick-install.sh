@@ -76,10 +76,13 @@ check_claude_installed() {
         echo "  请先安装 Claude Code："
         echo "  npm install -g @anthropic-ai/claude-code@2.1.112"
         echo ""
-        read -p "是否继续安装中文本地化插件？(y/N) " -n 1 -r
-        echo ""
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            exit 0
+        # 非 TTY 环境直接继续（curl | bash 场景）
+        if [ -t 0 ]; then
+            read -p "是否继续安装中文本地化插件？(y/N) " -n 1 -r
+            echo ""
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                exit 0
+            fi
         fi
     fi
 }

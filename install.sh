@@ -705,6 +705,11 @@ run_install_wizard() {
         return
     fi
 
+    # 非 TTY 环境（如 curl | bash）跳过交互，直接标准安装
+    if [ ! -t 0 ]; then
+        return
+    fi
+
     # 检查是否是首次安装
     if [ -f "$MARKER_FILE" ] || [ -f "$PLUGIN_DST/manifest.json" ]; then
         return
