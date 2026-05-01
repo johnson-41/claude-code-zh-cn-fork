@@ -134,8 +134,9 @@ if (Test-Path $PluginDst) {
 
 # 6. 清理 settings.json 备份
 $backupPattern = "$env:USERPROFILE\.claude\settings.json.zh-cn-backup.*"
-Get-ChildItem $backupPattern -ErrorAction SilentlyContinue | Remove-Item -Force
-if ((Get-ChildItem $backupPattern -ErrorAction SilentlyContinue).Count -gt 0) {
+$backups = Get-ChildItem $backupPattern -ErrorAction SilentlyContinue
+if ($backups) {
+    $backups | Remove-Item -Force
     Write-Host "已清理 settings.json 备份" -ForegroundColor Green
 }
 

@@ -81,7 +81,7 @@ function Get-PatchRevision($Root) {
     $code = @'
 const crypto=require("crypto"),fs=require("fs"),path=require("path");
 const root=process.argv[2];
-const files=["manifest.json","patch-cli.sh","patch-cli.js","cli-translations.json","bun-binary-io.js","compute-patch-revision.sh"];
+const files=["manifest.json","patch-cli.sh","patch-cli.js","cli-translations.json","bun-binary-io.js","compute-patch-revision.sh","hooks/session-start","hooks/notification","hooks/auto-repatch.sh","hooks/auto-update.sh","lib/common.sh"];
 const hash=crypto.createHash("sha256");
 for(const f of files){const t=path.join(root,f);if(!fs.existsSync(t))continue;hash.update(f);hash.update("\0");hash.update(fs.readFileSync(t));hash.update("\0")}
 process.stdout.write(hash.digest("hex").slice(0,16));

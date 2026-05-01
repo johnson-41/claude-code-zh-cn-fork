@@ -16,6 +16,11 @@ const files = [
   "cli-translations.json",
   "bun-binary-io.js",
   "compute-patch-revision.sh",
+  "hooks/session-start",
+  "hooks/notification",
+  "hooks/auto-repatch.sh",
+  "hooks/auto-update.sh",
+  "lib/common.sh",
 ];
 const hash = crypto.createHash("sha256");
 
