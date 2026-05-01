@@ -36,18 +36,22 @@ curl -fsSL https://raw.githubusercontent.com/KongBai1145/claude-code-zh-cn/main/
 
 ---
 
-## 支持的版本
+## 支持的安装方式
 
 | 你的安装方式 | 支持情况 | 需要操作 |
 |-------------|---------|---------|
 | `npm install -g @anthropic-ai/claude-code@2.1.112` | ✅ 完整支持 | 一键安装即可 |
+| `curl -fsSL https://claude.ai/install.sh \| bash -s 2.1.112` | ✅ 支持 | 需要 `npm install -g node-lief` |
 | macOS 官方安装器 (2.1.110-2.1.112) | ✅ 支持 | 需要 `npm install -g node-lief` |
 | macOS native (2.1.113-2.1.126) | ✅ 支持 | 需要 `npm install -g node-lief` |
+| `curl -fsSL https://claude.ai/install.sh \| bash` (Linux) | ✅ 支持 | 需要 `npm install -g node-lief` |
 | Linux native (2.1.126) | ✅ 支持 | 需要 `npm install -g node-lief` |
 | Windows PowerShell | ✅ 支持 | 使用 `install.ps1` |
 | 其他版本 | ⚠️ 部分支持 | 设置和 Hook 生效，UI 翻译可能不完整 |
 
 > 💡 **不确定用哪个版本？** 运行 `npm install -g @anthropic-ai/claude-code@2.1.112` 安装最稳定的版本。
+>
+> 💡 **用官方安装脚本装的？** 没问题！本插件支持 `curl -fsSL https://claude.ai/install.sh | bash` 安装的 Claude Code，需要先安装 `node-lief`。
 
 ---
 
