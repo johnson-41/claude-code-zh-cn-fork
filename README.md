@@ -81,9 +81,25 @@ powershell -NoProfile -ExecutionPolicy Bypass -File install.ps1
 
 ## 更新
 
-插件会**自动检测更新**，无需手动操作。
+### 自动更新
 
-如需手动更新插件：
+插件每 6 小时检查一次更新，自动同步到最新版本。
+
+**前提条件：需要保留源码仓库**
+
+```bash
+# 方式一：手动安装（推荐，自动保留仓库）
+git clone https://github.com/KongBai1145/claude-code-zh-cn.git
+cd claude-code-zh-cn
+./install.sh
+
+# 方式二：一键安装并保留仓库
+ZH_CN_KEEP_INSTALL_DIR=1 curl -fsSL https://raw.githubusercontent.com/KongBai1145/claude-code-zh-cn/main/quick-install.sh | bash
+```
+
+> ⚠️ 默认的 `curl | bash` 一键安装不会保留源码仓库，自动更新不会生效。
+
+### 手动更新
 
 ```bash
 cd claude-code-zh-cn
