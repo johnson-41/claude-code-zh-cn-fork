@@ -2,7 +2,7 @@
 
 ## 给研究模型的任务
 
-请研究 `taekchef/claude-code-zh-cn` 是否应该、以及如何支持 Claude Code `2.1.113+` / latest 的 native binary 形态。
+请研究 `KongBai1145/claude-code-zh-cn` 是否应该、以及如何支持 Claude Code `2.1.113+` / latest 的 native binary 形态。
 
 重点不是泛泛讨论，而是给出可执行判断：
 

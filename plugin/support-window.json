@@ -26,7 +26,7 @@
   },
   "macosNativeExperimental": {
     "floor": "2.1.113",
-    "ceiling": "2.1.123",
+    "ceiling": "2.1.126",
     "excluded": [
       "2.1.115"
     ],
@@ -40,10 +40,23 @@
       "2.1.120",
       "2.1.121",
       "2.1.122",
-      "2.1.123"
+      "2.1.123",
+      "2.1.124",
+      "2.1.126"
     ],
     "platform": "darwin-arm64",
     "packageName": "@anthropic-ai/claude-code-darwin-arm64",
+    "requires": [
+      "node-lief"
+    ]
+  },
+  "linuxNativeExperimental": {
+    "floor": "2.1.126",
+    "ceiling": "2.1.126",
+    "versions": [
+      "2.1.126"
+    ],
+    "platform": "linux",
     "requires": [
       "node-lief"
     ]

@@ -28,7 +28,9 @@ PROFILE_MARKER_END="# <<< claude-code-zh-cn launcher <<<"
 CLI_PATCH_STATUS_SUMMARY="已跳过（未执行 CLI Patch）"
 CLI_PATCH_STATUS_OK=false
 
+PLUGIN_ROOT="$PLUGIN_SRC"
 source "$SCRIPT_DIR/compute-patch-revision.sh"
+source "$PLUGIN_SRC/lib/common.sh"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -100,21 +102,59 @@ detect_platform() {
 }
 
 check_dependencies() {
+    local has_error=false
+
+    # 检查 node
     if ! command -v node &>/dev/null; then
-        echo -e "${RED}错误：需要 node，请先安装${NC}"
-        exit 1
+        echo -e "${RED}错误：需要 Node.js，请先安装${NC}"
+        echo ""
+        echo "安装建议："
+        echo "  macOS (Homebrew):  brew install node"
+        echo "  macOS (官方):      https://nodejs.org/"
+        echo "  Ubuntu/Debian:     sudo apt install nodejs npm"
+        echo "  CentOS/RHEL:       sudo yum install nodejs npm"
+        echo ""
+        has_error=true
+    else
+        local node_version
+        node_version="$(node --version 2>/dev/null || echo "unknown")"
+        echo -e "  ${GREEN}✓${NC} Node.js ${node_version}"
     fi
 
+    # 检查 npm
+    if ! command -v npm &>/dev/null; then
+        echo -e "${RED}错误：需要 npm，请先安装${NC}"
+        has_error=true
+    else
+        local npm_version
+        npm_version="$(npm --version 2>/dev/null || echo "unknown")"
+        echo -e "  ${GREEN}✓${NC} npm ${npm_version}"
+    fi
+
+    # 检查 git（仅非 update-only 模式）
+    if [ "$UPDATE_ONLY" != true ] && ! command -v git &>/dev/null; then
+        echo -e "${YELLOW}警告：建议安装 git 以支持自动更新功能${NC}"
+    fi
+
+    # 检查 jq（可选）
     if ! command -v jq &>/dev/null; then
         if [ "$UPDATE_ONLY" != true ] && [ "$SKIP_BANNER" != "1" ]; then
             echo -e "${YELLOW}提示：建议安装 jq 以获得更好的 JSON 合并支持${NC}"
-            echo "  brew install jq"
+            echo "  macOS:   brew install jq"
+            echo "  Ubuntu:  sudo apt install jq"
         fi
         USE_JQ=false
     else
+        echo -e "  ${GREEN}✓${NC} jq"
         USE_JQ=true
     fi
 
+    # 如果有致命错误，退出
+    if [ "$has_error" = true ]; then
+        exit 1
+    fi
+
+    # 检查原生二进制依赖
     local install_info
     install_info="$(detect_installation)"
     if [[ "${install_info:-}" == native-bun:* ]]; then
@@ -125,67 +165,37 @@ check_dependencies() {
 
         if is_supported_native_version "$native_version"; then
             if [ "$dep_status" != "ok" ]; then
+                echo ""
                 echo -e "${YELLOW}检测到已验证原生二进制版本 ${native_version:-unknown}，CLI Patch 需要 node-lief${NC}"
                 echo -e "  运行: ${GREEN}npm install -g node-lief${NC}"
+
+                # 询问是否自动安装
+                if [ "$UPDATE_ONLY" != true ] && [ "$SKIP_BANNER" != "1" ]; then
+                    read -p "  是否自动安装 node-lief？(Y/n) " -n 1 -r
+                    echo ""
+                    if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+                        echo -e "  ${BLUE}正在安装 node-lief...${NC}"
+                        if npm install -g node-lief 2>/dev/null; then
+                            echo -e "  ${GREEN}✓${NC} node-lief 安装成功"
+                        else
+                            echo -e "  ${RED}✗${NC} node-lief 安装失败，请手动运行: npm install -g node-lief"
+                        fi
+                    fi
+                fi
             else
+                echo -e "  ${GREEN}✓${NC} node-lief"
                 echo -e "${YELLOW}检测到已验证原生二进制版本 ${native_version}，将使用 experimental native patch${NC}"
             fi
         else
-            echo -e "${YELLOW}检测到原生二进制安装方式；当前版本 ${native_version:-unknown} 暂不支持 CLI Patch，已跳过 CLI Patch（安全退出）${NC}"
+            echo ""
+            echo -e "${YELLOW}检测到原生二进制安装方式；当前版本 ${native_version:-unknown} 暂不支持 CLI Patch${NC}"
             echo -e "  macOS native 已验证窗口：$(native_support_summary)"
-            echo -e "  如需稳定 CLI 中文化，请使用 npm 安装 Claude Code 2.1.112"
+            echo -e "  如需完整 CLI 中文化，请使用 npm 安装 Claude Code 2.1.112"
+            echo -e "  安装命令：${GREEN}npm install -g @anthropic-ai/claude-code@2.1.112${NC}"
         fi
     fi
 }
 
-native_binary_version() {
-    local binary_path="$1"
-    local version output temp_home
-
-    version="$(node "$PLUGIN_SRC/bun-binary-io.js" version "$binary_path" 2>/dev/null || true)"
-    if [ -n "${version:-}" ]; then
-        printf '%s' "$version"
-        return
-    fi
-
-    temp_home="$(mktemp -d "${TMPDIR:-/tmp}/cczh-version-home.XXXXXX" 2>/dev/null || true)"
-    if [ -n "${temp_home:-}" ]; then
-        output="$(HOME="$temp_home" XDG_CONFIG_HOME="$temp_home/.config" XDG_CACHE_HOME="$temp_home/.cache" XDG_DATA_HOME="$temp_home/.local/share" "$binary_path" --version 2>/dev/null || true)"
-        rm -rf "$temp_home" 2>/dev/null || true
-    else
-        output="$("$binary_path" --version 2>/dev/null || true)"
-    fi
-
-    printf '%s' "$output" | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true
-}
-
-is_supported_native_version() {
-    local version="$1"
-    local support_file="$PLUGIN_SRC/support-window.json"
-
-    if [ ! -f "$support_file" ]; then
-        case "${version:-}" in
-            2.1.110|2.1.111|2.1.112)
-                return 0
-                ;;
-            *)
-                return 1
-                ;;
-        esac
-    fi
-
-    node - "$support_file" "$version" <<'NODE'
-const fs = require("fs");
-const file = process.argv[2];
-const version = process.argv[3];
-const data = JSON.parse(fs.readFileSync(file, "utf8"));
-const versions = [
-  ...(data.macosNativeOfficialInstallerExperimental?.versions || []),
-  ...(data.macosNativeExperimental?.versions || []),
-];
-process.exit(versions.includes(version) ? 0 : 1);
-NODE
-}
 
 native_support_summary() {
     local support_file="$PLUGIN_SRC/support-window.json"
@@ -200,7 +210,7 @@ const fs = require("fs");
 const file = process.argv[2];
 const data = JSON.parse(fs.readFileSync(file, "utf8"));
 const ranges = [];
-for (const key of ["macosNativeOfficialInstallerExperimental", "macosNativeExperimental"]) {
+for (const key of ["macosNativeOfficialInstallerExperimental", "macosNativeExperimental", "linuxNativeExperimental"]) {
   const entry = data[key];
   if (!entry || !entry.floor || !entry.ceiling) continue;
   let range = entry.floor === entry.ceiling ? entry.floor : `${entry.floor} - ${entry.ceiling}`;
@@ -213,14 +223,13 @@ process.stdout.write(ranges.join("；") || "无");
 NODE
 }
 
-native_binary_hash() {
-    local binary_path="$1"
-    node "$PLUGIN_SRC/bun-binary-io.js" hash "$binary_path" 2>/dev/null || printf "unknown"
-}
-
 ensure_settings_file() {
     if [ ! -f "$SETTINGS_FILE" ]; then
-        if [ "$UPDATE_ONLY" != true ] && [ "$SKIP_BANNER" != "1" ]; then
+        if [ "$UPDATE_ONLY" = true ]; then
+            echo -e "${RED}错误：--update-only 模式需要已存在的 settings.json${NC}"
+            exit 1
+        fi
+        if [ "$SKIP_BANNER" != "1" ]; then
             echo -e "${YELLOW}settings.json 不存在，创建新文件${NC}"
         fi
         mkdir -p "$(dirname "$SETTINGS_FILE")"
@@ -466,31 +475,6 @@ install_launcher() {
     fi
 }
 
-find_real_claude_binary() {
-    if [ -n "${ZH_CN_REAL_CLAUDE:-}" ] && [ -x "${ZH_CN_REAL_CLAUDE:-}" ]; then
-        printf "%s" "$ZH_CN_REAL_CLAUDE"
-        return
-    fi
-
-    local filtered_path=""
-    local path_entry
-    local old_ifs="$IFS"
-    IFS=':'
-    for path_entry in ${PATH:-}; do
-        if [ "${path_entry:-}" = "$LAUNCHER_BIN_DIR" ]; then
-            continue
-        fi
-        if [ -z "$filtered_path" ]; then
-            filtered_path="$path_entry"
-        else
-            filtered_path="${filtered_path}:$path_entry"
-        fi
-    done
-    IFS="$old_ifs"
-
-    PATH="$filtered_path" command -v claude 2>/dev/null || true
-}
-
 detect_installation() {
     local claude_bin
     claude_bin="$(find_real_claude_binary)"
@@ -595,7 +579,8 @@ patch_npm_cli() {
 
 patch_native_binary() {
     local binary_path="$1"
-    local tmp_js="${TMPDIR:-/tmp}/claude-zh-cn-extract.$$.js"
+    local tmp_js
+    tmp_js="$(mktemp "${TMPDIR:-/tmp}/claude-zh-cn-extract.XXXXXX.js")"
     local backup_path="${binary_path}.zh-cn-backup"
     local current_version backup_version
 
@@ -632,7 +617,8 @@ patch_native_binary() {
     # 备份逻辑：仅同版本恢复 backup；版本变化时刷新 backup 为当前版本
     if [ -f "$backup_path" ] && [ -n "${current_version:-}" ] && [ "${current_version:-}" = "${backup_version:-}" ]; then
         echo -e "  从备份恢复原始二进制..."
-        cp "$backup_path" "$binary_path" || {
+        # mv 替换目录项，不打开正在运行的二进制（避免 ETXTBSY）
+        mv "$backup_path" "$binary_path" || {
             echo -e "${RED}恢复备份失败${NC}"
             return
         }
@@ -657,7 +643,7 @@ patch_native_binary() {
     if [ "$patch_count" != "0" ]; then
         node "$PLUGIN_SRC/bun-binary-io.js" repack "$binary_path" "$tmp_js" || {
             echo -e "${RED}写回二进制失败，正在从备份恢复...${NC}"
-            cp "$backup_path" "$binary_path" 2>/dev/null || true
+            mv "$backup_path" "$binary_path" 2>/dev/null || true
             CLI_PATCH_STATUS_SUMMARY="已跳过（原生二进制写回失败）"
             rm -f "$tmp_js"
             return
@@ -713,7 +699,84 @@ initial_patch_cli() {
     esac
 }
 
+# 交互式安装向导
+run_install_wizard() {
+    if [ "$UPDATE_ONLY" = true ] || [ "$SKIP_BANNER" = "1" ]; then
+        return
+    fi
+
+    # 检查是否是首次安装
+    if [ -f "$MARKER_FILE" ] || [ -f "$PLUGIN_DST/manifest.json" ]; then
+        return
+    fi
+
+    echo ""
+    echo -e "${BLUE}欢迎使用 Claude Code 中文本地化插件安装向导${NC}"
+    echo ""
+    echo "本向导将帮助您完成安装配置。"
+    echo ""
+
+    # 询问是否开始安装
+    read -p "是否开始安装？(Y/n) " -n 1 -r
+    echo ""
+    if [[ $REPLY =~ ^[Nn]$ ]]; then
+        echo "安装已取消。"
+        exit 0
+    fi
+
+    # 显示安装模式说明
+    echo ""
+    echo -e "${BLUE}安装模式说明：${NC}"
+    echo ""
+    echo "  1. 标准安装（推荐）"
+    echo "     - 自动检测 Claude Code 安装方式"
+    echo "     - 合并中文设置到 settings.json"
+    echo "     - 安装插件和 Hook"
+    echo "     - 如支持，自动 patch CLI 硬编码文字"
+    echo ""
+    echo "  2. 仅更新设置"
+    echo "     - 只更新 settings.json 和插件文件"
+    echo "     - 不执行 CLI Patch"
+    echo "     - 适合已有其他 CLI Patch 方案的用户"
+    echo ""
+
+    # 询问安装模式
+    read -p "选择安装模式 (1/2，默认 1): " install_mode
+    case "${install_mode:-1}" in
+        2)
+            echo ""
+            echo -e "${YELLOW}将以「仅更新设置」模式安装${NC}"
+            SKIP_CLI_PATCH=true
+            ;;
+        *)
+            echo ""
+            echo -e "${GREEN}将以标准模式安装${NC}"
+            SKIP_CLI_PATCH=false
+            ;;
+    esac
+
+    # 显示安装位置信息
+    echo ""
+    echo -e "${BLUE}安装位置：${NC}"
+    echo "  设置文件:  $SETTINGS_FILE"
+    echo "  插件目录:  $PLUGIN_DST"
+    echo "  Launcher:  $LAUNCHER_FILE"
+    echo ""
+
+    # 确认安装
+    read -p "确认开始安装？(Y/n) " -n 1 -r
+    echo ""
+    if [[ $REPLY =~ ^[Nn]$ ]]; then
+        echo "安装已取消。"
+        exit 0
+    fi
+    echo ""
+}
+
 main() {
+    # 运行安装向导（仅首次安装）
+    run_install_wizard
+
     print_banner
     detect_platform
     check_dependencies
@@ -722,7 +785,7 @@ main() {
     merge_settings
     write_install_metadata
 
-    if [ "$UPDATE_ONLY" != true ]; then
+    if [ "$UPDATE_ONLY" != true ] && [ "${SKIP_CLI_PATCH:-false}" != "true" ]; then
         initial_patch_cli
     fi
 

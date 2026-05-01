@@ -151,7 +151,7 @@
       "platform": "darwin-arm64",
       "packageName": "@anthropic-ai/claude-code-darwin-arm64",
       "floor": "2.1.113",
-      "ceiling": "2.1.123",
+      "ceiling": "2.1.126",
       "excluded": ["2.1.115"],
       "representatives": [
         "2.1.113",
@@ -163,15 +163,26 @@
         "2.1.120",
         "2.1.121",
         "2.1.122",
-        "2.1.123"
+        "2.1.123",
+        "2.1.124",
+        "2.1.126"
       ],
-      "verification": "2.1.113 PASS(native 1358, display 11/11) · 2.1.114 PASS(native 1358, display 11/11) · 2.1.116 PASS(native 1351, display 11/11) · 2.1.117 PASS(native 1334, display 11/11) · 2.1.118 PASS(native 1323, display 11/11) · 2.1.119 PASS(native 1328, display 11/11) · 2.1.120 PASS(native 1331, display 11/11) · 2.1.121 PASS(native 1334, display 11/11) · 2.1.122 PASS(native 1334, display 11/11) · 2.1.123 PASS(native 1334, display 11/11)",
+      "verification": "2.1.113 PASS(native 1358, display 11/11) · 2.1.114 PASS(native 1358, display 11/11) · 2.1.116 PASS(native 1351, display 11/11) · 2.1.117 PASS(native 1334, display 11/11) · 2.1.118 PASS(native 1323, display 11/11) · 2.1.119 PASS(native 1328, display 11/11) · 2.1.120 PASS(native 1331, display 11/11) · 2.1.121 PASS(native 1334, display 11/11) · 2.1.122 PASS(native 1334, display 11/11) · 2.1.123 PASS(native 1334, display 11/11) · 2.1.124 PASS(native extract/version) · 2.1.126 PASS(native extract/version)",
       "requires": ["node-lief"],
-      "notes": "macOS arm64 native binary experimental；需要 node-lief；已验证 2.1.113、2.1.114、2.1.116 - 2.1.123 的 extract / patch / repack / --version 和 11 个稳定显示面审计；2.1.115 官方未发布；不代表未来 latest 自动稳定。"
+      "notes": "macOS arm64 native binary experimental；需要 node-lief；已验证 2.1.113、2.1.114、2.1.116 - 2.1.126 的 extract / patch / repack / --version；2.1.115 官方未发布；不代表未来 latest 自动稳定。"
     },
     "linuxOfficialInstaller": {
       "unsupported": true,
       "notes": "当前不支持 Linux 官方安装器；请改用 npm 路径。"
+    },
+    "linuxNativeExperimental": {
+      "platform": "linux",
+      "floor": "2.1.126",
+      "ceiling": "2.1.126",
+      "representatives": ["2.1.126"],
+      "requires": ["node-lief"],
+      "verification": "2.1.126 PASS(ELF extract/repack/version)",
+      "notes": "Linux native binary experimental；需要 node-lief；已验证 2.1.126 的 extract / patch / repack / --version；使用直接文件 I/O 写入 .bun section（LIEF 不支持 ELF section 写入）。"
     },
     "windowsNpmPowerShell": {
       "stable": {

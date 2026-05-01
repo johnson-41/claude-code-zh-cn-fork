@@ -114,9 +114,8 @@ function detectInstallation(claudeCmd) {
   try { realPath = fs.realpathSync(claudeCmd); } catch { return "unknown"; }
 
   // 2. 先判真实目标本身是不是 Bun 二进制（Codex 二审 #1）
-  //    仅支持 Mach-O（macOS），ELF (Linux) 暂不开放
   const format = detectBinaryFormat(realPath);
-  if ((format === "MachO64" || format === "MachO32" || format === "PE") && hasBunTrailer(realPath)) {
+  if ((format === "MachO64" || format === "MachO32" || format === "PE" || format === "ELF") && hasBunTrailer(realPath)) {
     return "native-bun:" + realPath;
   }
 
@@ -134,7 +133,7 @@ function detectInstallation(claudeCmd) {
     "node_modules/@anthropic-ai/claude-code/bin/claude.exe");
   if (fs.existsSync(npmExe)) {
     const exeFormat = detectBinaryFormat(npmExe);
-    if ((exeFormat === "PE" || exeFormat === "MachO64" || exeFormat === "MachO32") && hasBunTrailer(npmExe)) {
+    if ((exeFormat === "PE" || exeFormat === "MachO64" || exeFormat === "MachO32" || exeFormat === "ELF") && hasBunTrailer(npmExe)) {
       return "native-bun:" + npmExe;
     }
   }
@@ -149,7 +148,7 @@ function detectInstallation(claudeCmd) {
     const npmExe2 = path.join(globalRoot, "@anthropic-ai/claude-code/bin/claude.exe");
     if (fs.existsSync(npmExe2)) {
       const exeFormat2 = detectBinaryFormat(npmExe2);
-      if ((exeFormat2 === "PE" || exeFormat2 === "MachO64" || exeFormat2 === "MachO32") && hasBunTrailer(npmExe2)) {
+      if ((exeFormat2 === "PE" || exeFormat2 === "MachO64" || exeFormat2 === "MachO32" || exeFormat2 === "ELF") && hasBunTrailer(npmExe2)) {
         return "native-bun:" + npmExe2;
       }
     }
@@ -175,7 +174,7 @@ function getStringPointerContent(buffer, sp) {
 
 function parseOffsets(buffer) {
   let pos = 0;
-  const byteCount = buffer.readBigUInt64LE(pos);
+  const offsetsOffset = buffer.readBigUInt64LE(pos);
   pos += 8;
   const modulesPtr = parseStringPointer(buffer, pos);
   pos += 8;
@@ -184,7 +183,7 @@ function parseOffsets(buffer) {
   const compileExecArgvPtr = parseStringPointer(buffer, pos);
   pos += 8;
   const flags = buffer.readUInt32LE(pos);
-  return { byteCount, modulesPtr, entryPointId, compileExecArgvPtr, flags };
+  return { offsetsOffset, modulesPtr, entryPointId, compileExecArgvPtr, flags };
 }
 
 function detectModuleStructSize(modulesListLength) {
@@ -289,6 +288,27 @@ function extractFromMachO(LIEF, binaryPath) {
   if (!bunSection) throw new Error("__bun section not found");
 
   return extractBunDataFromSection(bunSection.content);
+}
+
+function extractFromELF(LIEF, binaryPath) {
+  LIEF.logging.disable();
+  const binary = LIEF.parse(binaryPath);
+
+  const bunSection = binary.getSection(".bun");
+  if (!bunSection) throw new Error(".bun section not found");
+
+  return { ...extractBunDataFromSection(bunSection.content), elfSectionOffset: Number(bunSection.fileOffset) };
+}
+
+function extractFromBinary(LIEF, binaryPath) {
+  const format = detectBinaryFormat(binaryPath);
+  if (format === "MachO64" || format === "MachO32") {
+    return extractFromMachO(LIEF, binaryPath);
+  }
+  if (format === "ELF") {
+    return extractFromELF(LIEF, binaryPath);
+  }
+  throw new Error(`Unsupported binary format: ${format}`);
 }
 
 function findClaudeModule(bunData, bunOffsets, moduleStructSize) {
@@ -486,6 +506,57 @@ function repackMachO(LIEF, machoBinary, binPath, newBunBuffer, outputPath, secti
   }
 }
 
+function repackELF(binPath, newBunBuffer, elfSectionOffset, sectionHeaderSize) {
+  const newSectionData = buildSectionData(newBunBuffer, sectionHeaderSize);
+
+  // 读取原始 section 大小（优先从备份读取，避免 ETXTBSY）
+  const backupPath = binPath + ".zh-cn-backup";
+  const readSource = fs.existsSync(backupPath) ? backupPath : binPath;
+  const fd = fs.openSync(readSource, "r");
+  const origHeader = Buffer.alloc(8);
+  fs.readSync(fd, origHeader, 0, 8, elfSectionOffset);
+  fs.closeSync(fd);
+
+  const origDataSize = Number(origHeader.readBigUInt64LE(0));
+  const origSectionSize = 8 + origDataSize;
+
+  if (newSectionData.length > origSectionSize) {
+    throw new Error(
+      `New bun data (${newSectionData.length} bytes) exceeds ELF .bun section capacity (${origSectionSize} bytes). ` +
+      `Size increase of ${newSectionData.length - origSectionSize} bytes cannot be accommodated.`
+    );
+  }
+
+  // 从备份复制到临时文件再写入（避免 ETXTBSY，原始二进制可能正在运行）
+  const tmpPath = binPath + ".zh-cn-tmp";
+  fs.copyFileSync(readSource, tmpPath);
+  try {
+    const fd2 = fs.openSync(tmpPath, "r+");
+    try {
+      fs.writeSync(fd2, newSectionData, 0, newSectionData.length, elfSectionOffset);
+      if (newSectionData.length < origSectionSize) {
+        const padding = Buffer.alloc(origSectionSize - newSectionData.length);
+        fs.writeSync(fd2, padding, 0, padding.length, elfSectionOffset + newSectionData.length);
+      }
+    } finally {
+      fs.closeSync(fd2);
+    }
+
+    // 恢复原始文件权限
+    const origStat = fs.statSync(readSource);
+    fs.chmodSync(tmpPath, origStat.mode);
+
+    // 原子替换
+    fs.renameSync(tmpPath, binPath);
+  } catch (error) {
+    try { if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath); } catch {}
+    if (error && (error.code === "ETXTBSY" || error.code === "EBUSY" || error.code === "EPERM")) {
+      throw new Error("Cannot update the Claude executable while it is running. Please close all Claude instances and try again.");
+    }
+    throw error;
+  }
+}
+
 // ============================================================================
 // CLI 子命令实现
 // ============================================================================
@@ -511,7 +582,7 @@ function cmdExtract() {
     process.exit(1);
   }
 
-  const { bunData, bunOffsets, moduleStructSize } = extractFromMachO(LIEF, binaryPath);
+  const { bunData, bunOffsets, moduleStructSize } = extractFromBinary(LIEF, binaryPath);
   const found = findClaudeModule(bunData, bunOffsets, moduleStructSize);
   if (!found || found.contents.length === 0) {
     process.stderr.write("Error: claude module not found in binary\n");
@@ -538,17 +609,23 @@ function cmdRepack() {
 
   LIEF.logging.disable();
   const modifiedJs = fs.readFileSync(jsPath);
-  const binary = LIEF.parse(binaryPath);
 
-  const { bunOffsets, bunData, sectionHeaderSize, moduleStructSize } = extractFromMachO(LIEF, binaryPath);
+  const format = detectBinaryFormat(binaryPath);
+  const extracted = extractFromBinary(LIEF, binaryPath);
+  const { bunOffsets, bunData, sectionHeaderSize, moduleStructSize } = extracted;
   const newBuffer = rebuildBunData(bunData, bunOffsets, modifiedJs, moduleStructSize);
 
-  if (binary.format !== "MachO") {
-    process.stderr.write("Error: only Mach-O (macOS) is supported in this version\n");
+  if (format === "MachO64" || format === "MachO32") {
+    const binary = LIEF.parse(binaryPath);
+    repackMachO(LIEF, binary, binaryPath, newBuffer, binaryPath, sectionHeaderSize);
+  } else if (format === "ELF") {
+    const elfSectionOffset = extracted.elfSectionOffset;
+    repackELF(binaryPath, newBuffer, elfSectionOffset, sectionHeaderSize);
+  } else {
+    process.stderr.write(`Error: unsupported binary format: ${format}\n`);
     process.exit(1);
   }
 
-  repackMachO(LIEF, binary, binaryPath, newBuffer, binaryPath, sectionHeaderSize);
   process.stdout.write("ok");
 }
 
@@ -566,11 +643,11 @@ function cmdVersion() {
   }
 
   try {
-    const { bunData, bunOffsets, moduleStructSize } = extractFromMachO(LIEF, binaryPath);
+    const { bunData, bunOffsets, moduleStructSize } = extractFromBinary(LIEF, binaryPath);
     const found = findClaudeModule(bunData, bunOffsets, moduleStructSize);
     if (found && found.contents.length > 0) {
       // 从 JS 内容头部提取版本号（匹配 "// Version: X.Y.Z" 格式）
-      const header = found.contents.subarray(0, 200).toString("utf-8");
+      const header = found.contents.subarray(0, 1000).toString("utf-8");
       const match = header.match(/\/\/ Version: (\S+)/);
       if (match) {
         process.stdout.write(match[1]);
