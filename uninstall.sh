@@ -27,12 +27,20 @@ list_profile_targets() {
         return
     fi
 
-    printf "%s\n" \
-        "$HOME/.zshrc" \
-        "$HOME/.zprofile" \
-        "$HOME/.bashrc" \
-        "$HOME/.bash_profile" \
+    local candidates=(
+        "$HOME/.zshrc"
+        "$HOME/.zprofile"
+        "$HOME/.bashrc"
+        "$HOME/.bash_profile"
         "$HOME/.profile"
+    )
+
+    local target
+    for target in "${candidates[@]}"; do
+        if [ -f "$target" ]; then
+            printf "%s\n" "$target"
+        fi
+    done
 }
 
 remove_profile_injection() {

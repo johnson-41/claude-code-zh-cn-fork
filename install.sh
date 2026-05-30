@@ -94,7 +94,7 @@ detect_platform() {
 
     if [ -f /proc/version ] && grep -qi "microsoft" /proc/version 2>/dev/null; then
         echo -e "${GREEN}检测到 WSL 环境，继续安装${NC}"
-    elif [ -f /proc/version ]; then
+    elif [ "${OS:-}" = "Windows_NT" ] && [ -f /proc/version ]; then
         echo -e "${YELLOW}提示：未检测到 WSL 环境。如果你在 Windows 上使用 Git Bash 或 PowerShell，${NC}"
         echo -e "${YELLOW}请切换到 WSL 终端后运行此脚本。Claude Code 仅通过 WSL 在 Windows 上运行。${NC}"
         echo ""
@@ -241,11 +241,11 @@ prune_settings_backups() {
     local settings_dir
     settings_dir="$(dirname "$SETTINGS_FILE")"
 
-    ZH_CN_SETTINGS_DIR="$settings_dir" node -e "
+    node -e "
 const fs = require('fs');
 const path = require('path');
 
-const settingsDir = process.env.ZH_CN_SETTINGS_DIR;
+const settingsDir = process.argv[1];
 const prefix = 'settings.json.zh-cn-backup.';
 
 try {
@@ -258,24 +258,31 @@ try {
     fs.unlinkSync(path.join(settingsDir, name));
   }
 } catch {}
-" 2>/dev/null || true
+" "$settings_dir" 2>/dev/null || true
 }
 
 build_overlay_content() {
-    local overlay_content verbs_content tips_content
+    local tmp_base tmp_verbs tmp_tips result
+    tmp_base=$(mktemp "${TMPDIR:-/tmp}/cczh-overlay-base.XXXXXX")
+    tmp_verbs=$(mktemp "${TMPDIR:-/tmp}/cczh-overlay-verbs.XXXXXX")
+    tmp_tips=$(mktemp "${TMPDIR:-/tmp}/cczh-overlay-tips.XXXXXX")
+    trap "rm -f '$tmp_base' '$tmp_verbs' '$tmp_tips'" RETURN
 
-    overlay_content=$(cat "$OVERLAY_FILE")
-    verbs_content=$(cat "$SCRIPT_DIR/verbs/zh-CN.json")
-    tips_content=$(cat "$SCRIPT_DIR/tips/zh-CN.json")
+    cp "$OVERLAY_FILE" "$tmp_base"
+    cp "$SCRIPT_DIR/verbs/zh-CN.json" "$tmp_verbs"
+    cp "$SCRIPT_DIR/tips/zh-CN.json" "$tmp_tips"
 
-    ZH_CN_BASE="$overlay_content" ZH_CN_VERBS="$verbs_content" ZH_CN_TIPS="$tips_content" node -e "
-const base = JSON.parse(process.env.ZH_CN_BASE);
-const verbs = JSON.parse(process.env.ZH_CN_VERBS);
-const tips = JSON.parse(process.env.ZH_CN_TIPS);
+    result=$(node -e "
+const fs = require('fs');
+const base = JSON.parse(fs.readFileSync(process.argv[1], 'utf8'));
+const verbs = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const tips = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
 base.spinnerVerbs = verbs;
 base.spinnerTipsOverride = { excludeDefault: true, tips: tips.tips.map(t => t.text) };
 process.stdout.write(JSON.stringify(base));
-"
+" "$tmp_base" "$tmp_verbs" "$tmp_tips")
+
+    printf '%s' "$result"
 }
 
 merge_settings() {
@@ -304,13 +311,17 @@ merge_settings() {
         fi
         echo "$merged" > "$SETTINGS_FILE"
     else
-        ZH_CN_SETTINGS="$SETTINGS_FILE" ZH_CN_OVERLAY="$overlay_content" node -e "
+        local tmp_overlay
+        tmp_overlay=$(mktemp "${TMPDIR:-/tmp}/cczh-merge-overlay.XXXXXX")
+        trap "rm -f '$tmp_overlay'" RETURN
+        printf '%s' "$overlay_content" > "$tmp_overlay"
+        node -e "
 const fs = require('fs');
 
-const settingsFile = process.env.ZH_CN_SETTINGS;
-const overlayContent = process.env.ZH_CN_OVERLAY;
+const settingsFile = process.argv[1];
+const overlayFile = process.argv[2];
 const settings = JSON.parse(fs.readFileSync(settingsFile, 'utf8'));
-const overlay = JSON.parse(overlayContent);
+const overlay = JSON.parse(fs.readFileSync(overlayFile, 'utf8'));
 
 function deepMerge(base, override) {
   const result = { ...base };
@@ -333,7 +344,8 @@ function deepMerge(base, override) {
 
 const merged = deepMerge(settings, overlay);
 fs.writeFileSync(settingsFile, JSON.stringify(merged, null, 2) + '\n');
-" 2>/dev/null
+" "$SETTINGS_FILE" "$tmp_overlay" 2>/dev/null
+        rm -f "$tmp_overlay"
     fi
 
     if [ "$SKIP_BANNER" != "1" ]; then

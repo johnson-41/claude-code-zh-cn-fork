@@ -7,33 +7,10 @@ MARKER_FILE="$PLUGIN_ROOT/.patched-version"
 LAUNCHER_BIN_DIR="$(cd "$(dirname "$0")" && pwd)"
 WARNING_PREFIX="[claude-code-zh-cn]"
 
+source "$PLUGIN_ROOT/lib/common.sh"
+
 log_warning() {
     printf "%s %s\n" "$WARNING_PREFIX" "$1" >&2
-}
-
-find_real_claude_binary() {
-    if [ -n "${ZH_CN_REAL_CLAUDE:-}" ] && [ -x "${ZH_CN_REAL_CLAUDE:-}" ]; then
-        printf "%s" "$ZH_CN_REAL_CLAUDE"
-        return
-    fi
-
-    local filtered_path=""
-    local path_entry
-    local old_ifs="$IFS"
-    IFS=':'
-    for path_entry in ${PATH:-}; do
-        if [ "${path_entry:-}" = "$LAUNCHER_BIN_DIR" ]; then
-            continue
-        fi
-        if [ -z "$filtered_path" ]; then
-            filtered_path="$path_entry"
-        else
-            filtered_path="${filtered_path}:$path_entry"
-        fi
-    done
-    IFS="$old_ifs"
-
-    PATH="$filtered_path" command -v claude 2>/dev/null || true
 }
 
 read_cli_version() {

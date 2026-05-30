@@ -6,7 +6,8 @@
 
 param(
     [switch]$UpdateOnly = $false,
-    [switch]$SkipBanner = $false
+    [switch]$SkipBanner = $false,
+    [switch]$SkipCliPatch = $false
 )
 
 $ErrorActionPreference = "Stop"
@@ -68,7 +69,7 @@ $JS_BACKUP_PRUNE = "var fs=require('fs'),path=require('path');var dir=process.en
 
 $JS_BUILD_OVERLAY_FILES = "var fs=require('fs');var base=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));var verbs=JSON.parse(fs.readFileSync(process.argv[3],'utf8'));var tips=JSON.parse(fs.readFileSync(process.argv[4],'utf8'));base.spinnerVerbs=verbs;base.spinnerTipsOverride={excludeDefault:true,tips:tips.tips.map(function(t){return t.text})};process.stdout.write(JSON.stringify(base))"
 
-$JS_DEEP_MERGE_FILES = "var fs=require('fs');var sf=process.argv[2];var of=process.argv[3];function readJson(f){return JSON.parse(fs.readFileSync(f,'utf8').replace(/^\uFEFF/,''))}var settings=readJson(sf);var overlay=readJson(of);function dm(b,o){var r={};var k;for(k in b){if(b.hasOwnProperty(k))r[k]=b[k]}for(k in o){if(!o.hasOwnProperty(k))continue;if(r[k]&&typeof r[k]==='object'&&!Array.isArray(r[k])&&o[k]&&typeof o[k]==='object'&&!Array.isArray(o[k])){r[k]=dm(r[k],o[k])}else{r[k]=o[k]}}return r}var m=dm(settings,overlay);fs.writeFileSync(sf,JSON.stringify(m,null,2)+'\n');process.stdout.write('ok')"
+$JS_DEEP_MERGE_FILES = "var fs=require('fs');var sf=process.argv[2];var ov=process.argv[3];function readJson(f){return JSON.parse(fs.readFileSync(f,'utf8').replace(/^\uFEFF/,''))}var settings=readJson(sf);var overlay=readJson(ov);function dm(b,o){var r={};var k;for(k in b){if(b.hasOwnProperty(k))r[k]=b[k]}for(k in o){if(!o.hasOwnProperty(k))continue;if(r[k]&&typeof r[k]==='object'&&!Array.isArray(r[k])&&o[k]&&typeof o[k]==='object'&&!Array.isArray(o[k])){r[k]=dm(r[k],o[k])}else{r[k]=o[k]}}return r}var m=dm(settings,overlay);fs.writeFileSync(sf,JSON.stringify(m,null,2)+'\n');process.stdout.write('ok')"
 
 $JS_PATCH_REVISION = "var crypto=require('crypto'),fs=require('fs'),path=require('path');var root=process.argv[2];var files=['manifest.json','patch-cli.sh','patch-cli.js','cli-translations.json','bun-binary-io.js','compute-patch-revision.sh','hooks/session-start','hooks/notification','hooks/auto-repatch.sh','hooks/auto-update.sh','lib/common.sh'];var hash=crypto.createHash('sha256');for(var i=0;i<files.length;i++){var f=files[i];var t=path.join(root,f);if(!fs.existsSync(t))continue;hash.update(f);hash.update('\0');hash.update(fs.readFileSync(t));hash.update('\0')}process.stdout.write(hash.digest('hex').slice(0,16))"
 
@@ -100,16 +101,36 @@ function completion {
 
 # ======== 依赖检查 ========
 function check-deps {
+    $hasError = $false
+
     if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
         Write-CN "错误：需要 node，请先安装 Node.js" Red
-        exit 1
+        $hasError = $true
+    } else {
+        $nodeVer = (node --version 2>$null) ?? "unknown"
+        Write-CN "  √ Node.js $nodeVer" Green
     }
+
+    if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
+        Write-CN "错误：需要 npm，请先安装" Red
+        $hasError = $true
+    } else {
+        $npmVer = (npm --version 2>$null) ?? "unknown"
+        Write-CN "  √ npm $npmVer" Green
+    }
+
+    if (-not $UpdateOnly -and -not (Get-Command git -ErrorAction SilentlyContinue)) {
+        Write-CN "警告：建议安装 git 以支持自动更新功能" Yellow
+    }
+
     if (-not $UpdateOnly -and -not $SkipBanner) {
         if (-not (Get-Command jq -ErrorAction SilentlyContinue)) {
             Write-CN "提示：建议安装 jq 以获得更好的 JSON 合并支持" Yellow
             Write-Host "  winget install jqlang.jq"
         }
     }
+
+    if ($hasError) { exit 1 }
 }
 
 # ======== 路径/安装检测 ========
@@ -217,7 +238,8 @@ function merge-settings {
         Write-CN "已更新 settings.json" Green
     }
     if ($PluginDst -and (Test-Path $PluginDst)) {
-        $overlayContent | Out-File -FilePath "$PluginDst\.settings-overlay-cache.json" -Encoding utf8 -NoNewline
+        $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+        [System.IO.File]::WriteAllText("$PluginDst\.settings-overlay-cache.json", $overlayContent, $utf8NoBom)
     }
 }
 
@@ -386,15 +408,76 @@ function write-metadata {
     "$timestamp" | Out-File -FilePath $LastUpdateCheckFile -Encoding ascii -NoNewline
 }
 
+# ======== 交互式安装向导 ========
+function run_install_wizard {
+    if ($UpdateOnly -or $SkipBanner) { return }
+    if ([Console]::IsInputRedirected) { return }
+
+    $markerExists = (Test-Path $MarkerFile) -or (Test-Path "$PluginDst\manifest.json")
+    if ($markerExists) { return }
+
+    Write-Host ""
+    Write-CN "欢迎使用 Claude Code 界面汉化插件安装向导" Blue
+    Write-Host ""
+    Write-Host "本向导将帮助您完成安装配置。"
+    Write-Host ""
+
+    $reply = Read-Host "是否开始安装？(Y/n)"
+    if ($reply -match '^[Nn]') {
+        Write-Host "安装已取消。"
+        exit 0
+    }
+
+    Write-Host ""
+    Write-CN "安装模式说明：" Blue
+    Write-Host ""
+    Write-Host "  1. 标准安装（推荐）"
+    Write-Host "     - 自动检测 Claude Code 安装方式"
+    Write-Host "     - 合并中文设置到 settings.json"
+    Write-Host "     - 安装插件和 Hook"
+    Write-Host "     - 如支持，自动 patch CLI 硬编码文字"
+    Write-Host ""
+    Write-Host "  2. 仅更新设置"
+    Write-Host "     - 只更新 settings.json 和插件文件"
+    Write-Host "     - 不执行 CLI Patch"
+    Write-Host "     - 适合已有其他 CLI Patch 方案的用户"
+    Write-Host ""
+
+    $mode = Read-Host "选择安装模式 (1/2，默认 1)"
+    if ($mode -eq "2") {
+        Write-Host ""
+        Write-CN "将以「仅更新设置」模式安装" Yellow
+        $script:SkipCliPatch = $true
+    } else {
+        Write-Host ""
+        Write-CN "将以标准模式安装" Green
+    }
+
+    Write-Host ""
+    Write-CN "安装位置：" Blue
+    Write-Host "  设置文件:  $SettingsFile"
+    Write-Host "  插件目录:  $PluginDst"
+    Write-Host "  Launcher:  $LauncherBinDir"
+    Write-Host ""
+
+    $confirm = Read-Host "确认开始安装？(Y/n)"
+    if ($confirm -match '^[Nn]') {
+        Write-Host "安装已取消。"
+        exit 0
+    }
+    Write-Host ""
+}
+
 # ======== 主流程 ========
 function Main {
+    run_install_wizard
     banner
     check-deps
     sync-plugin
     install-launcher
     merge-settings
     write-metadata
-    if (-not $UpdateOnly) {
+    if (-not $UpdateOnly -and -not $SkipCliPatch) {
         initial-patch
     }
     completion

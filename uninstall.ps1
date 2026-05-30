@@ -64,18 +64,27 @@ if ($currentUserPath -like "*$LauncherBinDir*") {
 if (Test-Path $SettingsFile) {
     if (Get-Command jq -ErrorAction SilentlyContinue) {
         $tempFile = "$SettingsFile.tmp"
-        jq 'del(.language) | del(.spinnerTipsEnabled) | del(.spinnerTipsOverride) | del(.spinnerVerbs)' $SettingsFile | Out-File -FilePath $tempFile -Encoding utf8 -NoNewline
+        $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+        $jqOutput = jq 'del(.language) | del(.spinnerTipsEnabled) | del(.spinnerTipsOverride) | del(.spinnerVerbs)' $SettingsFile
+        [System.IO.File]::WriteAllText($tempFile, $jqOutput, $utf8NoBom)
         Move-Item $tempFile $SettingsFile -Force
         Write-Host "已从 settings.json 移除中文设置（保留其他配置）" -ForegroundColor Green
     } elseif (Get-Command node -ErrorAction SilentlyContinue) {
-        $env:ZH_CN_SETTINGS = $SettingsFile
-        node -e @"
-const fs=require('fs');
-const s=JSON.parse(fs.readFileSync(process.env.ZH_CN_SETTINGS,'utf8'));
-for(const k of ['language','spinnerTipsEnabled','spinnerTipsOverride','spinnerVerbs']){delete s[k]}
-fs.writeFileSync(process.env.ZH_CN_SETTINGS,JSON.stringify(s,null,2)+'\n');
-"@
-        Remove-Item Env:\ZH_CN_SETTINGS -ErrorAction SilentlyContinue
+        $tmpJs = Join-Path $env:TEMP "cczh-uninstall-$PID.js"
+        @'
+const fs = require("fs");
+const settingsFile = process.argv[2];
+const settings = JSON.parse(fs.readFileSync(settingsFile, "utf8"));
+for (const key of ["language", "spinnerTipsEnabled", "spinnerTipsOverride", "spinnerVerbs"]) {
+  delete settings[key];
+}
+fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2) + "\n");
+'@ | Out-File -FilePath $tmpJs -Encoding ascii -NoNewline
+        try {
+            node $tmpJs $SettingsFile
+        } finally {
+            Remove-Item $tmpJs -Force -ErrorAction SilentlyContinue
+        }
         Write-Host "已从 settings.json 移除中文设置（保留其他配置）" -ForegroundColor Green
     } else {
         Write-Host "请手动编辑 $SettingsFile 移除以下字段：" -ForegroundColor Yellow

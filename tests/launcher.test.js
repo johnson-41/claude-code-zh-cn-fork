@@ -87,6 +87,7 @@ function createLauncherContext() {
     "dirname",
     "rm",
     "grep",
+    "mktemp",
   ]);
 
   return {

@@ -507,7 +507,7 @@ function repackMachO(LIEF, machoBinary, binPath, newBunBuffer, outputPath, secti
   }
 }
 
-function repackELF(binPath, newBunBuffer, elfSectionOffset, sectionHeaderSize) {
+function repackELF(LIEF, binPath, newBunBuffer, elfSectionOffset, sectionHeaderSize) {
   const newSectionData = buildSectionData(newBunBuffer, sectionHeaderSize);
 
   // 读取原始 section 大小（优先从备份读取，避免 ETXTBSY）
@@ -524,13 +524,31 @@ function repackELF(binPath, newBunBuffer, elfSectionOffset, sectionHeaderSize) {
   const origSectionSize = sectionHeaderSize + origDataSize;
 
   if (newSectionData.length > origSectionSize) {
-    throw new Error(
-      `New bun data (${newSectionData.length} bytes) exceeds ELF .bun section capacity (${origSectionSize} bytes). ` +
-      `Size increase of ${newSectionData.length - origSectionSize} bytes cannot be accommodated.`
-    );
+    // section 需要扩展：用 LIEF 移除旧 section 并添加新的 loaded section
+    const sourcePath = readSource;
+    const tmpPath = binPath + ".zh-cn-tmp";
+    try {
+      const binary = LIEF.parse(sourcePath);
+      const oldSection = binary.getSection(".bun");
+      if (oldSection) {
+        binary.remove(oldSection);
+      }
+      const newSection = new LIEF.ELF.Section(".bun");
+      newSection.content = Array.from(newSectionData);
+      binary.add(newSection, true);
+      atomicWriteBinary(LIEF, binary, tmpPath, sourcePath);
+      fs.renameSync(tmpPath, binPath);
+    } catch (error) {
+      try { if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath); } catch {}
+      if (error && (error.code === "ETXTBSY" || error.code === "EBUSY" || error.code === "EPERM")) {
+        throw new Error("Cannot update the Claude executable while it is running. Please close all Claude instances and try again.");
+      }
+      throw error;
+    }
+    return;
   }
 
-  // 从备份复制到临时文件再写入（避免 ETXTBSY，原始二进制可能正在运行）
+  // section 大小足够：原地替换
   const tmpPath = binPath + ".zh-cn-tmp";
   fs.copyFileSync(readSource, tmpPath);
   try {
@@ -545,11 +563,8 @@ function repackELF(binPath, newBunBuffer, elfSectionOffset, sectionHeaderSize) {
       fs.closeSync(fd2);
     }
 
-    // 恢复原始文件权限
     const origStat = fs.statSync(readSource);
     fs.chmodSync(tmpPath, origStat.mode);
-
-    // 原子替换
     fs.renameSync(tmpPath, binPath);
   } catch (error) {
     try { if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath); } catch {}
@@ -623,7 +638,7 @@ function cmdRepack() {
     repackMachO(LIEF, binary, binaryPath, newBuffer, binaryPath, sectionHeaderSize);
   } else if (format === "ELF") {
     const elfSectionOffset = extracted.elfSectionOffset;
-    repackELF(binaryPath, newBuffer, elfSectionOffset, sectionHeaderSize);
+    repackELF(LIEF, binaryPath, newBuffer, elfSectionOffset, sectionHeaderSize);
   } else {
     process.stderr.write(`Error: unsupported binary format: ${format}\n`);
     process.exit(1);

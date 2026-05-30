@@ -121,7 +121,8 @@ if (Test-Path $SourceRepoFile) {
     $SourceRepo = [System.IO.File]::ReadAllText($SourceRepoFile, [System.Text.Encoding]::UTF8) -replace '\r?\n', ''
 }
 
-if ($SourceRepo -and (Test-Path "$SourceRepo\.git") -and $env:ZH_CN_DISABLE_AUTO_UPDATE -ne "1") {
+$hasLocalGit = $SourceRepo -and (Test-Path "$SourceRepo\.git")
+if ($env:ZH_CN_DISABLE_AUTO_UPDATE -ne "1") {
     $now = [DateTimeOffset]::Now.ToUnixTimeSeconds()
     $last = 0
     if (Test-Path $LastUpdateCheckFile) {
@@ -133,32 +134,82 @@ if ($SourceRepo -and (Test-Path "$SourceRepo\.git") -and $env:ZH_CN_DISABLE_AUTO
         [string]$now | Out-File -FilePath $LastUpdateCheckFile -Encoding ascii -NoNewline
 
         $LocalVersion = Read-ManifestVersion "$PluginRoot\manifest.json"
+        $LatestTag = $null
+        $LatestVersion = $null
+
         if ($LocalVersion) {
-            Push-Location $SourceRepo
-            try {
-                git fetch --tags --quiet 2>$null
-                $LatestTag = (git tag -l 'v*' --sort=-version:refname 2>$null | Select-Object -First 1)
-            } finally {
-                Pop-Location
+            # 方式一：本地 git 仓库
+            if ($hasLocalGit) {
+                Push-Location $SourceRepo
+                try {
+                    $fetchJob = Start-Job -ScriptBlock {
+                        param($repo)
+                        Set-Location $repo
+                        git fetch --tags --quiet 2>$null
+                    } -ArgumentList $SourceRepo
+                    $null = Wait-Job $fetchJob -Timeout 15
+                    Remove-Job $fetchJob -Force -ErrorAction SilentlyContinue
+                    $LatestTag = (git tag -l 'v*' --sort=-version:refname 2>$null | Select-Object -First 1)
+                } finally {
+                    Pop-Location
+                }
             }
-            $LatestVersion = $LatestTag -replace '^v', ''
+
+            # 方式二：GitHub API fallback（无本地仓库或 git 获取失败时）
+            if (-not $LatestTag -and $env:ZH_CN_NO_GITHUB_FALLBACK -ne "1") {
+                try {
+                    $apiUrl = "https://api.github.com/repos/KongBai1145/claude-code-zh-cn/releases/latest"
+                    $release = Invoke-RestMethod -Uri $apiUrl -TimeoutSec 15 -ErrorAction Stop
+                    if ($release.tag_name) {
+                        $LatestTag = $release.tag_name
+                    }
+                } catch {}
+            }
+
+            $LatestVersion = if ($LatestTag) { $LatestTag -replace '^v', '' } else { $null }
             if ($LatestTag -and $LatestVersion -and $LocalVersion -match '^\d+\.\d+\.\d+' -and $LatestVersion -match '^\d+\.\d+\.\d+') {
                 if (Test-VersionIsNewer $LocalVersion $LatestVersion) {
-                    # 原生 PowerShell 自动更新：调用 install.ps1 -UpdateOnly -SkipBanner
                     $stagingDir = Join-Path ([System.IO.Path]::GetTempPath()) "cczh-update-${PID}"
                     try {
                         New-Item -ItemType Directory -Force -Path $stagingDir | Out-Null
-                        Push-Location $SourceRepo
-                        try {
-                            git archive --format=tar $LatestTag install.ps1 install.sh compute-patch-revision.sh settings-overlay.json verbs tips plugin 2>$null | tar -xf - -C $stagingDir 2>$null
-                        } finally { Pop-Location }
-                        if ((Test-Path "$stagingDir\install.ps1") -and (Test-Path "$stagingDir\settings-overlay.json") -and (Test-Path "$stagingDir\plugin\manifest.json")) {
-                            $env:CLAUDE_PLUGIN_ROOT = $PluginRoot
-                            $env:ZH_CN_SOURCE_REPO = $SourceRepo
-                            $env:ZH_CN_SKIP_BANNER = "1"
-                            powershell -NoProfile -ExecutionPolicy Bypass -File "$stagingDir\install.ps1" -UpdateOnly -SkipBanner 2>$null
-                            Remove-Item Env:\CLAUDE_PLUGIN_ROOT, Env:\ZH_CN_SOURCE_REPO, Env:\ZH_CN_SKIP_BANNER -ErrorAction SilentlyContinue
-                            $AutoUpdateMsg = "插件已从 v${LocalVersion} 更新到 v${LatestVersion}"
+                        $exported = $false
+
+                        # 方式一：从本地仓库导出
+                        if ($hasLocalGit) {
+                            Push-Location $SourceRepo
+                            try {
+                                git archive --format=tar $LatestTag install.ps1 install.sh compute-patch-revision.sh settings-overlay.json verbs tips plugin 2>$null | tar -xf - -C $stagingDir 2>$null
+                                $exported = $?
+                            } finally { Pop-Location }
+                        }
+
+                        # 方式二：从 GitHub 下载 tar.gz
+                        if (-not $exported) {
+                            try {
+                                $downloadUrl = "https://github.com/KongBai1145/claude-code-zh-cn/archive/refs/tags/${LatestTag}.tar.gz"
+                                $tarFile = Join-Path $stagingDir "release.tar.gz"
+                                Invoke-WebRequest -Uri $downloadUrl -OutFile $tarFile -TimeoutSec 30 -ErrorAction Stop
+                                tar -xzf $tarFile -C $stagingDir --strip-components=1 2>$null
+                                $exported = $?
+                                Remove-Item $tarFile -Force -ErrorAction SilentlyContinue
+                            } catch {}
+                        }
+
+                        if ($exported) {
+                            $stagingValid = (Test-Path "$stagingDir\install.ps1") -and (Test-Path "$stagingDir\install.sh") -and
+                                (Test-Path "$stagingDir\settings-overlay.json") -and (Test-Path "$stagingDir\compute-patch-revision.sh") -and
+                                (Test-Path "$stagingDir\plugin\manifest.json") -and (Test-Path "$stagingDir\plugin\patch-cli.sh") -and
+                                (Test-Path "$stagingDir\plugin\patch-cli.js") -and (Test-Path "$stagingDir\plugin\cli-translations.json") -and
+                                (Test-Path "$stagingDir\plugin\bun-binary-io.js") -and
+                                (Test-Path "$stagingDir\verbs\zh-CN.json") -and (Test-Path "$stagingDir\tips\zh-CN.json")
+                            if ($stagingValid) {
+                                $env:CLAUDE_PLUGIN_ROOT = $PluginRoot
+                                $env:ZH_CN_SOURCE_REPO = if ($SourceRepo) { $SourceRepo } else { "" }
+                                $env:ZH_CN_SKIP_BANNER = "1"
+                                powershell -NoProfile -ExecutionPolicy Bypass -File "$stagingDir\install.ps1" -UpdateOnly -SkipBanner 2>$null
+                                Remove-Item Env:\CLAUDE_PLUGIN_ROOT, Env:\ZH_CN_SOURCE_REPO, Env:\ZH_CN_SKIP_BANNER -ErrorAction SilentlyContinue
+                                $AutoUpdateMsg = "插件已从 v${LocalVersion} 更新到 v${LatestVersion}"
+                            }
                         }
                     } catch {} finally {
                         if (Test-Path $stagingDir) {
@@ -194,8 +245,8 @@ if ($InstallInfo) {
         if ($CurrentMarker -ne $PatchedVersion -or $hasResidue) {
             if (Test-Path "$PluginRoot\patch-cli.js") {
                 $patchCount = node "$PluginRoot\patch-cli.js" "$Target" "$PluginRoot\cli-translations.json" 2>$null
+                "$CurrentMarker" | Out-File -FilePath $MarkerFile -Encoding ascii -NoNewline
                 if ($patchCount -and [int]$patchCount -gt 0) {
-                    "$CurrentMarker" | Out-File -FilePath $MarkerFile -Encoding ascii -NoNewline
                     $AutoPatchMsg = "（已自动 patch ${patchCount} 处硬编码文字）"
                 }
             }
@@ -246,7 +297,7 @@ if ($AutoPatchMsg) {
 $result = @{
     hookSpecificOutput = @{
         hookEventName    = "SessionStart"
-        additionalContext = ($ctxLines -join "\n")
+        additionalContext = ($ctxLines -join "`n")
     }
 }
 $result | ConvertTo-Json -Compress -Depth 10

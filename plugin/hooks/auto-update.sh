@@ -62,18 +62,19 @@ fetch_latest_release_tag() {
             GIT_TERMINAL_PROMPT=0 git -C "$source_repo" fetch --tags --quiet >/dev/null 2>&1 &
             pid=$!
             local waited=0
+            local timed_out=false
             while [ $waited -lt 15 ]; do
                 if ! kill -0 "$pid" 2>/dev/null; then
-                    wait "$pid" 2>/dev/null || true
                     break
                 fi
                 sleep 1
                 waited=$((waited + 1))
             done
             if kill -0 "$pid" 2>/dev/null; then
+                timed_out=true
                 kill "$pid" 2>/dev/null || true
-                wait "$pid" 2>/dev/null || true
             fi
+            wait "$pid" 2>/dev/null || true
         fi
         local tag
         tag="$(git -C "$source_repo" tag -l 'v*' --sort=-version:refname | head -1)"
@@ -85,11 +86,11 @@ fetch_latest_release_tag() {
     local repo_url="https://api.github.com/repos/KongBai1145/claude-code-zh-cn/releases/latest"
     if command -v curl &>/dev/null; then
         local tag
-        tag="$(curl -s "$repo_url" 2>/dev/null | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"v\?\([^"]*\)".*/v\1/' | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$')"
+        tag="$(curl -s -m 15 "$repo_url" 2>/dev/null | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"v\?\([^"]*\)".*/v\1/' | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$')"
         [ -n "$tag" ] && echo "$tag" && return
     elif command -v wget &>/dev/null; then
         local tag
-        tag="$(wget -qO- "$repo_url" 2>/dev/null | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"v\?\([^"]*\)".*/v\1/' | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$')"
+        tag="$(wget -qO- --timeout=15 "$repo_url" 2>/dev/null | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"v\?\([^"]*\)".*/v\1/' | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$')"
         [ -n "$tag" ] && echo "$tag" && return
     fi
 }
@@ -110,9 +111,9 @@ export_release_to_staging() {
     # 方式二：从 GitHub 下载（无需本地仓库）
     local download_url="https://github.com/KongBai1145/claude-code-zh-cn/archive/refs/tags/${latest_tag}.tar.gz"
     if command -v curl &>/dev/null; then
-        curl -sL "$download_url" 2>/dev/null | tar -xzf - -C "$staging_dir" --strip-components=1 2>/dev/null && return 0
+        curl -sL -m 30 "$download_url" 2>/dev/null | tar -xzf - -C "$staging_dir" --strip-components=1 2>/dev/null && return 0
     elif command -v wget &>/dev/null; then
-        wget -qO- "$download_url" 2>/dev/null | tar -xzf - -C "$staging_dir" --strip-components=1 2>/dev/null && return 0
+        wget -qO- --timeout=30 "$download_url" 2>/dev/null | tar -xzf - -C "$staging_dir" --strip-components=1 2>/dev/null && return 0
     fi
 
     return 1
