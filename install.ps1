@@ -107,7 +107,8 @@ function check-deps {
         Write-CN "错误：需要 node，请先安装 Node.js" Red
         $hasError = $true
     } else {
-        $nodeVer = (node --version 2>$null) ?? "unknown"
+        $nodeVer = node --version 2>$null
+        if (-not $nodeVer) { $nodeVer = "unknown" }
         Write-CN "  √ Node.js $nodeVer" Green
     }
 
@@ -115,7 +116,8 @@ function check-deps {
         Write-CN "错误：需要 npm，请先安装" Red
         $hasError = $true
     } else {
-        $npmVer = (npm --version 2>$null) ?? "unknown"
+        $npmVer = npm --version 2>$null
+        if (-not $npmVer) { $npmVer = "unknown" }
         Write-CN "  √ npm $npmVer" Green
     }
 
