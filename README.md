@@ -10,35 +10,24 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Version](https://img.shields.io/github/v/tag/KongBai1145/claude-code-zh-cn?label=Version&color=blue)](https://github.com/KongBai1145/claude-code-zh-cn/releases)
 
-**一键安装 · 自动更新 · 安全卸载 · Windows 可视化安装器**
+**一键安装 · 自动更新 · 安全卸载**
 
 </div>
 
 ---
 
-## 一键安装
+## 安装
 
-### Windows（推荐）
+### Windows
 
-双击 `install.bat` 打开可视化安装器：
+双击 `install.bat`，打开可视化安装器，按提示操作即可。
 
 ```
-┌─────────────────────────────────────────┐
-│  Claude Code 中文本地化 v2.5.0           │
-├─────────────────────────────────────────┤
-│  [1] 一键汉化                            │
-│  [2] 更新汉化                            │
-│  [3] 卸载所有汉化                         │
-│  [4] 打开备份文件夹  │  [5] 手动备份      │
-└─────────────────────────────────────────┘
-```
-
-或者命令行安装：
-
-```powershell
-git clone https://github.com/KongBai1145/claude-code-zh-cn.git
-cd claude-code-zh-cn
-.\install.ps1
+  1. 一键汉化
+  2. 更新汉化
+  3. 卸载所有汉化
+  4. 打开备份文件夹
+  5. 手动备份
 ```
 
 ### macOS / Linux
@@ -47,11 +36,9 @@ cd claude-code-zh-cn
 curl -fsSL https://raw.githubusercontent.com/KongBai1145/claude-code-zh-cn/main/quick-install.sh | bash
 ```
 
-> 安装脚本会自动检测你的系统和 Claude Code 版本，无需手动选择。
-
 ---
 
-## 效果预览
+## 效果
 
 | 安装前 | 安装后 |
 |--------|--------|
@@ -59,80 +46,50 @@ curl -fsSL https://raw.githubusercontent.com/KongBai1145/claude-code-zh-cn/main/
 | `Thinking...` | `思考中...` |
 | `Tip: Press Shift+Tab...` | `按 Shift+Tab 切换模式` |
 
-187 个趣味 spinner 动词，41 条中文提示，1742 条 UI 翻译，AI 默认中文回复。**装完即用。**
+187 个 spinner 动词，1742 条 UI 翻译，AI 默认中文回复。
 
 ---
 
-## 支持的安装方式
+## 支持范围
 
-| 你的安装方式 | 支持情况 | 需要操作 |
-|-------------|---------|---------|
-| `npm install -g @anthropic-ai/claude-code@2.1.112` | ✅ 完整支持 | 一键安装即可 |
-| macOS 官方安装器 (2.1.110-2.1.156) | ✅ experimental | 需要 `npm install -g node-lief` |
-| Linux native (2.1.126) | ✅ experimental | 需要 `npm install -g node-lief` |
-| Windows native (2.1.113-2.1.153) | ✅ experimental | 双击 `install-gui.ps1` |
-| 其他版本 | ⚠️ 部分支持 | 设置和 Hook 生效，UI 翻译可能不完整 |
+| 安装方式 | 支持 |
+|----------|------|
+| npm (`@anthropic-ai/claude-code`) | ✅ 完整支持 |
+| macOS 官方安装器 (2.1.110-2.1.156) | ✅ experimental |
+| Windows 官方安装器 (2.1.113-2.1.153) | ✅ experimental |
+| Linux native (2.1.126) | ✅ experimental |
 
----
-
-## 更新
-
-### 自动更新
-
-插件每 6 小时检查一次上游翻译更新，自动同步。**无需手动操作。**
-
-禁用：`ZH_CN_DISABLE_AUTO_UPDATE=1`
-
-### 手动更新
-
-**Windows**: 双击 `install-gui.ps1` → 点击「更新汉化」
-
-**macOS / Linux**:
-
-```bash
-cd claude-code-zh-cn
-git pull
-./install.sh
-```
+> node-lief 依赖会在安装时自动处理，无需手动安装。
 
 ---
 
-## 卸载
+## 更新与卸载
 
-**Windows**: 双击 `install-gui.ps1` → 点击「卸载所有汉化」
+**更新**：插件每 6 小时自动检查上游翻译更新。也可手动运行安装器选择「更新汉化」。
 
-卸载会：
-- 验证备份文件是否为英文原版（检查是否包含 `Quick safety check` 等原文）
-- 备份干净 → 自动恢复
-- 备份也是汉化版 → 提示手动运行 `npm install -g @anthropic-ai/claude-code` 恢复
-- 清除汉化设置、插件目录、launcher
+**卸载**：运行安装器选择「卸载所有汉化」。卸载前会验证备份文件是否为英文原版，确保恢复安全。
 
 ---
 
 ## 诊断
 
-安装后如有问题，运行诊断工具：
+安装后如有问题：
 
 ```bash
 ./doctor.sh
 ```
 
-或 Windows: `install-gui.ps1` 中的诊断功能。
-
 ---
 
-## 特色功能
+## 功能
 
-| 功能 | 说明 |
-|------|------|
-| **AI 中文回复** | 默认使用简体中文回复 |
-| **187 个趣味动词** | `光合作用中`、`七荤八素中`、`蹦迪中`... |
-| **1742 条 UI 翻译** | 覆盖菜单、提示、快捷键、slash 命令 |
-| **自动修复** | Claude Code 更新后自动重新翻译 |
-| **自动更新** | 插件发布新版本后自动同步 |
-| **Windows GUI** | 可视化安装器，双击即用 |
-| **诊断工具** | `doctor.sh` 一键检查安装状态 |
-| **安全卸载** | 验证备份后再恢复，不破坏原有配置 |
+- AI 默认中文回复
+- 187 个趣味 spinner（`光合作用中`、`蹦迪中`、`七荤八素中`...）
+- 1742 条 UI 翻译（菜单、提示、快捷键、slash 命令）
+- Claude Code 更新后自动重新翻译
+- Windows 可视化安装器
+- 一键诊断工具
+- 安全卸载（验证备份后再恢复）
 
 ---
 
@@ -141,14 +98,14 @@ git pull
 <details>
 <summary>点击展开</summary>
 
-本插件通过四层机制实现中文化：
+四层中文化机制：
 
-1. **设置注入** - 修改 `settings.json`，设置语言和 spinner
-2. **Hook 系统** - 会话启动时注入中文上下文
-3. **插件系统** - 提供中文输出风格
-4. **CLI Patch** - 直接翻译 UI 硬编码文字（1742 条）
+1. **设置注入** — `settings.json` 设置语言和 spinner
+2. **Hook 系统** — 会话启动注入中文上下文
+3. **插件系统** — 中文输出风格
+4. **CLI Patch** — 直接翻译 UI 硬编码文字
 
-Layer 1-3 不受 Claude Code 更新影响，Layer 4 会自动重新翻译。
+Layer 1-3 不受 Claude Code 更新影响，Layer 4 自动重新翻译。
 
 </details>
 
@@ -159,7 +116,7 @@ Layer 1-3 不受 Claude Code 更新影响，Layer 4 会自动重新翻译。
 <details>
 <summary>Claude Code 更新后会失效吗？</summary>
 
-不会。插件会自动检测版本变更并重新翻译。也可手动点击「更新汉化」。
+不会。插件自动检测版本变更并重新翻译。
 </details>
 
 <details>
@@ -178,8 +135,6 @@ macOS、Linux、Windows（PowerShell / WSL）。需要 Node.js。
 
 ## 贡献
 
-欢迎 PR！
-
 - 翻译改进 → 编辑 `tips/zh-CN.json` 或 `verbs/zh-CN.json`
 - Bug 反馈 → [提交 Issue](https://github.com/KongBai1145/claude-code-zh-cn/issues)
 
@@ -192,22 +147,6 @@ macOS、Linux、Windows（PowerShell / WSL）。需要 Node.js。
 
 ---
 
-## 与原项目的改进
-
-| 改进项 | 原项目 | 本项目 |
-|--------|--------|--------|
-| Windows 安装 | 命令行 `install.ps1` | **WPF 可视化安装器** |
-| 翻译同步 | 手动更新 | **自动同步上游翻译 + CI 定期 PR** |
-| 安装方式 | 需要 git clone | **curl 一键安装 + 可视化安装器** |
-| 卸载安全 | 直接恢复备份 | **验证备份是否为英文原版后再恢复** |
-| 诊断工具 | 无 | **`doctor.sh` 一键诊断** |
-| 远程安装 | 无 | **`install-remote.sh` Release asset 安装** |
-| 版本覆盖 | macOS 2.1.126 | **macOS 2.1.156 + Windows native 2.1.153** |
-
----
-
 ## 许可证
 
 [MIT](./LICENSE)
-
-*本项目不是 Anthropic 官方产品。Claude Code 是 Anthropic Inc. 的商标。*
