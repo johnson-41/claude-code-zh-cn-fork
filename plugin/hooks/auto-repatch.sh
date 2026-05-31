@@ -170,7 +170,7 @@ _repatch_npm() {
         npm_probe_residue=""
     fi
 
-    if [ -z "$npm_probe_residue" ]; then
+    if [ "$patch_count" != "0" ] && [ -z "$npm_probe_residue" ]; then
         echo "$current_marker" > "$MARKER_FILE"
     fi
 

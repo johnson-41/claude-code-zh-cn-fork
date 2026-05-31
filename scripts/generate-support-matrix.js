@@ -29,7 +29,7 @@ function renderRange(entry) {
   if (!entry || entry.unsupported) return "-";
   if (entry.floor && entry.ceiling) {
     const excluded = Array.isArray(entry.excluded) && entry.excluded.length > 0
-      ? ` (不含 ${entry.excluded.join(", ")})`
+      ? ` (不含未纳入本轮支持的 ${entry.excluded.join(", ")})`
       : "";
     return `${entry.floor} - ${entry.ceiling}${excluded}`;
   }
@@ -117,17 +117,11 @@ function buildMarkdown(config, compat) {
   const windowsNpmTier = windowsNpm.unsupported ? "unsupported" : "stable";
   const windowsNpmWindow = windowsNpm.unsupported ? windowsNpm : windowsNpmStable;
   const windowsNativeUnsupported = config.support?.windowsNativeExe || {};
-  const now = new Date();
-  const generatedOn = [
-    now.getUTCFullYear(),
-    String(now.getUTCMonth() + 1).padStart(2, "0"),
-    String(now.getUTCDate()).padStart(2, "0"),
-  ].join("-");
-
+  const windowsNativeExperimental = config.support?.windowsNativeExperimental || null;
   const lines = [
     "# Support Matrix",
     "",
-    `> Generated from \`scripts/upstream-compat.config.json\` + \`node scripts/verify-upstream-compat.js --json\` on ${generatedOn}.`,
+    "> Generated from `scripts/upstream-compat.config.json` + `node scripts/verify-upstream-compat.js --json`.",
     "",
     "## Quick Decision",
     "",
@@ -159,12 +153,23 @@ function buildMarkdown(config, compat) {
       windowsNpmTier,
       windowsNpmWindow.notes
     )} |`,
-    `| Windows / native .exe / latest | ${renderRange(
-      windowsNativeUnsupported
-    )} | unsupported | ${renderCoverageForChannel("unsupported")} | ${renderAction(
-      "unsupported",
-      windowsNativeUnsupported.notes
-    )} |`,
+    ...(windowsNativeExperimental && windowsNativeExperimental.unsupported !== true
+      ? [
+          `| Windows / native .exe | ${renderRange(
+            windowsNativeExperimental
+          )} | experimental | ${renderCoverageForChannel(
+            "experimental",
+            windowsNativeExperimental.verification
+          )} | ${renderAction("experimental", windowsNativeExperimental.notes)} |`,
+        ]
+      : [
+          `| Windows / native .exe / latest | ${renderRange(
+            windowsNativeUnsupported
+          )} | unsupported | ${renderCoverageForChannel("unsupported")} | ${renderAction(
+            "unsupported",
+            windowsNativeUnsupported.notes
+          )} |`,
+        ]),
     "",
     "## Tier Definition",
     "",
@@ -197,9 +202,20 @@ function buildMarkdown(config, compat) {
     `| Windows / npm global install (PowerShell) | ${windowsNpmTier} | ${renderRange(
       windowsNpmWindow
     )} | - | ${windowsNpmWindow.notes || "-"} |`,
-    `| Windows / native .exe / latest | unsupported | ${renderRange(
-      windowsNativeUnsupported
-    )} | - | ${windowsNativeUnsupported.notes || "-"} |`,
+    ...(windowsNativeExperimental && windowsNativeExperimental.unsupported !== true
+      ? [
+          `| Windows / native .exe | experimental | ${renderRange(
+            windowsNativeExperimental
+          )} | ${windowsNativeExperimental.verification || renderRepresentativeStatus(
+            windowsNativeExperimental.representatives,
+            resultMap
+          )} | ${windowsNativeExperimental.notes || "-"} |`,
+        ]
+      : [
+          `| Windows / native .exe / latest | unsupported | ${renderRange(
+            windowsNativeUnsupported
+          )} | - | ${windowsNativeUnsupported.notes || "-"} |`,
+        ]),
     "",
     "## Compatibility Matrix",
     "",

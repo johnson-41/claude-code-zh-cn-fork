@@ -1,0 +1,57 @@
+name: Sync Upstream Translations
+
+on:
+  schedule:
+    # 每周一 UTC 06:00 自动运行
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Sync upstream files
+        run: bash scripts/sync-upstream.sh
+
+      - name: Check for changes
+        id: changes
+        run: |
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "### 变更文件:" >> "$GITHUB_STEP_SUMMARY"
+            git diff --stat >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Create Pull Request
+        if: steps.changes.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: sync upstream translations and patch engine"
+          title: "chore: sync upstream translations from taekchef/claude-code-zh-cn"
+          body: |
+            自动同步上游仓库 (taekchef/claude-code-zh-cn) 的翻译和 patch 引擎。
+
+            同步内容:
+            - `cli-translations.json` — 翻译条目
+            - `patch-cli.js` — patch 引擎
+            - `plugin/support-window.json` — 版本支持窗口
+            - `bun-binary-io.js` — 二进制 I/O
+            - `verbs/zh-CN.json` — spinner 动词
+            - `tips/zh-CN.json` — spinner 提示
+
+            由 CI 自动创建，请 review 后合并。
+          branch: auto/sync-upstream
+          delete-branch: true

@@ -358,6 +358,131 @@ function patch-npm-cli {
     }
 }
 
+function read-native-version {
+    param([string]$BinaryPath)
+    # 方法1: bun-binary-io.js version
+    $helperFile = $null
+    if (Test-Path "$PluginSrc\bun-binary-io.js") { $helperFile = "$PluginSrc\bun-binary-io.js" }
+    elseif (Test-Path "$PluginDst\bun-binary-io.js") { $helperFile = "$PluginDst\bun-binary-io.js" }
+    if ($helperFile) {
+        $ver = node $helperFile version $BinaryPath 2>$null
+        if ($ver) { return $ver.Trim() }
+    }
+    # 方法2: --version
+    try {
+        $output = & $BinaryPath --version 2>$null
+        if ($output -match '(\d+\.\d+\.\d+)') { return $matches[1] }
+    } catch {}
+    return ""
+}
+
+function test-supported-native-version {
+    param([string]$Version)
+    $supportFile = "$PluginSrc\support-window.json"
+    if (-not (Test-Path $supportFile)) { return $false }
+    $js = @'
+var fs=require("fs");
+var data=JSON.parse(fs.readFileSync(process.argv[2],"utf8"));
+var v=process.argv[3];
+var versions=[];
+["macosNativeOfficialInstallerExperimental","macosNativeExperimental","windowsNativeExperimental","linuxNativeExperimental"].forEach(function(k){
+var e=data[k];if(!e)return;
+(Array.isArray(e.versions)?e.versions:[]).forEach(function(x){versions.push(x)})});
+process.exit(versions.indexOf(v)>=0?0:1);
+'@
+    $tmp = Join-Path $env:TEMP "cczh-vercheck-$PID.js"
+    $js | Out-File -FilePath $tmp -Encoding ascii -NoNewline
+    try { node $tmp $supportFile $Version 2>$null; return $LASTEXITCODE -eq 0 } finally { Remove-Item $tmp -Force -ErrorAction SilentlyContinue }
+}
+
+function patch-native-binary {
+    param([string]$BinaryPath)
+    Write-Host ""
+    Write-CN "检测到官方安装器（原生二进制）" Blue
+    Write-CN "  二进制路径: $BinaryPath"
+
+    $currentVersion = read-native-version $BinaryPath
+    if (-not (test-supported-native-version $currentVersion)) {
+        Write-CN "当前原生二进制版本 $currentVersion 暂不支持 CLI Patch，已跳过" Yellow
+        $script:CliPatchStatusSummary = "已跳过（原生二进制版本 $currentVersion 暂不支持 CLI Patch）"
+        return
+    }
+
+    Write-CN "  版本: $currentVersion（experimental）"
+
+    # 检查 node-lief，缺失时自动安装
+    $depStatus = node "$PluginSrc\bun-binary-io.js" check-deps 2>$null
+    if ($depStatus -ne "ok") {
+        Write-CN "正在安装 node-lief（原生二进制 patch 依赖）..." Yellow
+        $installResult = npm install -g node-lief 2>&1
+        $depStatus2 = node "$PluginSrc\bun-binary-io.js" check-deps 2>$null
+        if ($depStatus2 -ne "ok") {
+            Write-CN "node-lief 安装失败，请手动运行: npm install -g node-lief" Red
+            $script:CliPatchStatusSummary = "已跳过（node-lief 安装失败）"
+            return
+        }
+        Write-CN "  node-lief 安装成功" Green
+    }
+
+    $backupPath = "$BinaryPath.zh-cn-backup"
+    $backupVersion = ""
+    if (Test-Path $backupPath) {
+        $backupVersion = read-native-version $backupPath
+    }
+
+    # 备份/恢复逻辑
+    if ((Test-Path $backupPath) -and $currentVersion -and ($currentVersion -eq $backupVersion)) {
+        Write-CN "  从备份恢复原始二进制..."
+        Copy-Item $backupPath $BinaryPath -Force
+    } else {
+        Write-CN "  备份原始二进制..."
+        Copy-Item $BinaryPath $backupPath -Force
+    }
+
+    # Extract
+    $tmpJs = Join-Path $env:TEMP "cczh-extract-$PID.js"
+    $extractOk = node "$PluginSrc\bun-binary-io.js" extract $BinaryPath $tmpJs 2>$null
+    if (-not $extractOk) {
+        Write-CN "提取 JS 失败" Red
+        $script:CliPatchStatusSummary = "已跳过（原生二进制提取失败）"
+        Remove-Item $tmpJs -Force -ErrorAction SilentlyContinue
+        return
+    }
+
+    # Patch
+    $patchCount = node "$PluginSrc\patch-cli.js" $tmpJs "$PluginSrc\cli-translations.json" 2>$null
+
+    if ($patchCount -and [int]$patchCount -gt 0) {
+        # Repack
+        $repackOk = node "$PluginSrc\bun-binary-io.js" repack $BinaryPath $tmpJs 2>$null
+        if (-not $repackOk) {
+            Write-CN "写回二进制失败，正在从备份恢复..." Red
+            if (Test-Path $backupPath) { Copy-Item $backupPath $BinaryPath -Force }
+            $script:CliPatchStatusSummary = "已跳过（原生二进制写回失败）"
+            Remove-Item $tmpJs -Force -ErrorAction SilentlyContinue
+            return
+        }
+        Write-CN "已 patch 原生二进制（$patchCount 处硬编码文字）" Green
+        $script:CliPatchStatusSummary = "官方安装器 native 中文化（$patchCount 处硬编码文字）"
+        $script:CliPatchStatusOk = $true
+    } else {
+        Write-CN "未找到需要 patch 的内容" Yellow
+        $script:CliPatchStatusSummary = "原生二进制无新增改动"
+        $script:CliPatchStatusOk = $true
+    }
+
+    Remove-Item $tmpJs -Force -ErrorAction SilentlyContinue
+
+    # 写入 marker
+    $finalVersion = read-native-version $BinaryPath
+    $finalHash = node "$PluginSrc\bun-binary-io.js" hash $BinaryPath 2>$null
+    if (-not $finalHash) { $finalHash = "unknown" }
+    $patchRevision = get-patch-revision $PluginDst
+    if ($patchRevision -and $finalVersion) {
+        "native|$finalVersion|$finalHash|$patchRevision" | Out-File -FilePath $MarkerFile -Encoding ascii -NoNewline
+    }
+}
+
 function initial-patch {
     $realClaude = find-real-claude
     if (-not $realClaude) {
@@ -379,8 +504,9 @@ function initial-patch {
             }
         }
         "native-bun" {
-            Write-CN "检测到原生二进制安装；Windows PE 二进制暂不支持 patch，仅 macOS 支持" Yellow
-            $script:CliPatchStatusSummary = "已跳过（Windows PE 二进制 patch 暂未支持）"
+            if ($target -and (Test-Path $target)) {
+                patch-native-binary $target
+            }
         }
         "unknown" {
             Write-CN "当前安装方式暂不支持 CLI Patch，已跳过此步骤" Yellow
@@ -410,64 +536,243 @@ function write-metadata {
     "$timestamp" | Out-File -FilePath $LastUpdateCheckFile -Encoding ascii -NoNewline
 }
 
-# ======== 交互式安装向导 ========
+# ======== 手动备份 ========
+function do-manual-backup {
+    Write-Host ""
+    Write-CN "正在备份..." Blue
+    $backupZip = "$env:USERPROFILE\claude-code-zh-cn-backup.zip"
+    $tmpBackup = Join-Path $env:TEMP "cczh-backup-$PID"
+    if (Test-Path $tmpBackup) { Remove-Item -Recurse -Force $tmpBackup }
+    New-Item -ItemType Directory -Force -Path $tmpBackup | Out-Null
+
+    # settings.json
+    if (Test-Path $SettingsFile) {
+        Copy-Item $SettingsFile (Join-Path $tmpBackup "settings.json") -Force
+        Write-Host "  settings.json"
+    }
+    # cli.js backup
+    $bin = find-real-claude
+    $info = detect-install $bin
+    if ($info -and $info.StartsWith("npm:")) {
+        $cli = $info.Substring(4)
+        if (Test-Path "$cli.zh-cn-backup") {
+            $cliDir = Join-Path $tmpBackup "cli"
+            New-Item -ItemType Directory -Force -Path $cliDir | Out-Null
+            Copy-Item "$cli.zh-cn-backup" (Join-Path $cliDir "cli.js.zh-cn-backup") -Force
+            Write-Host "  cli.js 备份"
+        }
+    } elseif ($info -and $info.StartsWith("native-bun:")) {
+        $nativePath = $info.Substring(11)
+        if (Test-Path "$nativePath.zh-cn-backup") {
+            $nativeDir = Join-Path $tmpBackup "native"
+            New-Item -ItemType Directory -Force -Path $nativeDir | Out-Null
+            Copy-Item "$nativePath.zh-cn-backup" (Join-Path $nativeDir "binary-backup") -Force
+            Write-Host "  原生二进制备份"
+        }
+    }
+    # plugin dir
+    if (Test-Path $PluginDst) {
+        Copy-Item "$PluginDst\*" (Join-Path $tmpBackup "plugin") -Recurse -Force
+        Write-Host "  插件目录"
+    }
+    # settings backups
+    $backups = Get-ChildItem "$env:USERPROFILE\.claude\settings.json.zh-cn-backup.*" -ErrorAction SilentlyContinue
+    if ($backups) {
+        $sbDir = Join-Path $tmpBackup "settings-backups"
+        New-Item -ItemType Directory -Force -Path $sbDir | Out-Null
+        $backups | ForEach-Object { Copy-Item $_.FullName (Join-Path $sbDir $_.Name) -Force }
+        Write-Host "  settings 备份 ($($backups.Count) 个)"
+    }
+
+    # zip
+    if (Test-Path $backupZip) { Remove-Item $backupZip -Force }
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [System.IO.Compression.ZipFile]::CreateFromDirectory($tmpBackup, $backupZip)
+    Remove-Item -Recurse -Force $tmpBackup
+    $size = [math]::Round((Get-Item $backupZip).Length / 1KB, 1)
+    Write-Host ""
+    Write-CN "备份完成: $backupZip ($size KB)" Green
+}
+
+# ======== 卸载 ========
+function do-uninstall {
+    Write-Host ""
+    Write-CN "正在卸载所有汉化..." Blue
+
+    # 移除 launcher
+    $removed = $false
+    foreach ($f in @("$LauncherBinDir\claude.cmd", "$LauncherBinDir\claude.ps1")) {
+        if (Test-Path $f) { Remove-Item $f -Force; $removed = $true }
+    }
+    if ($removed) { Write-Host "  已移除 launcher" }
+    $curPath = [Environment]::GetEnvironmentVariable("PATH", "User")
+    if ($curPath -like "*$LauncherBinDir*") {
+        $newPath = ($curPath -split ';' | Where-Object { $_ -ne $LauncherBinDir -and $_ -ne "$LauncherBinDir\" }) -join ';'
+        [Environment]::SetEnvironmentVariable("PATH", $newPath, "User")
+    }
+
+    # 清理 settings
+    if (Test-Path $SettingsFile) {
+        $delJs = "var fs=require('fs');var f=process.argv[1],s=JSON.parse(fs.readFileSync(f,'utf8'));['language','spinnerTipsEnabled','spinnerTipsOverride','spinnerVerbs'].forEach(function(k){delete s[k]});fs.writeFileSync(f,JSON.stringify(s,null,2)+'\n');"
+        run-js $delJs @($SettingsFile)
+        Write-Host "  已清理 settings.json"
+    }
+
+    # 还原 cli.js（安全方式）
+    $bin = find-real-claude
+    $info = detect-install $bin
+    if ($info -and $info.StartsWith("npm:")) {
+        $cli = $info.Substring(4)
+        $bak = "$cli.zh-cn-backup"
+        $ver = read-cli-version $cli
+        if (Test-Path $bak) {
+            $bakVer = read-cli-version $bak
+            if ($bakVer -eq $ver) {
+                $isClean = Select-String -Path $bak -Pattern "Quick safety check" -Quiet
+                if ($isClean) {
+                    Copy-Item $bak $cli -Force
+                    Remove-Item $bak -Force
+                    Write-Host "  已还原 cli.js（验证为英文原版）"
+                } else {
+                    Write-Host "  备份也是汉化版本，跳过还原"
+                    Write-Host "  建议运行: npm install -g @anthropic-ai/claude-code@$ver"
+                }
+            } else {
+                Write-Host "  备份版本不一致，跳过还原"
+            }
+        }
+    } elseif ($info -and $info.StartsWith("native-bun:")) {
+        $nativePath = $info.Substring(11)
+        if (Test-Path "$nativePath.zh-cn-backup") {
+            Copy-Item "$nativePath.zh-cn-backup" $nativePath -Force
+            Remove-Item "$nativePath.zh-cn-backup" -Force
+            Write-Host "  已还原原生二进制"
+        }
+    }
+
+    # 移除插件目录
+    if (Test-Path $PluginDst) {
+        Remove-Item -Recurse -Force $PluginDst
+        Write-Host "  已移除插件目录"
+    }
+    # 清理备份
+    Get-ChildItem "$env:USERPROFILE\.claude\settings.json.zh-cn-backup.*" -ErrorAction SilentlyContinue | Remove-Item -Force
+
+    Write-Host ""
+    Write-CN "卸载完成！重启 Claude Code 即可恢复英文界面" Green
+}
+
+# ======== 更新汉化 ========
+function do-update {
+    Write-Host ""
+    Write-CN "正在更新汉化..." Blue
+
+    # 检测已安装
+    if (-not (Test-Path $MarkerFile)) {
+        Write-CN "未检测到已安装的汉化插件，请先选择「一键汉化」" Yellow
+        return
+    }
+    $marker = Get-Content $MarkerFile -Raw
+    Write-Host "  当前标记: $marker"
+
+    # 检测 Claude Code
+    $bin = find-real-claude
+    $info = detect-install $bin
+    if (-not $info) {
+        Write-CN "未检测到 Claude Code" Yellow
+        return
+    }
+
+    $kind, $target = $info -split ':', 2
+    $ver = ""
+    if ($kind -eq "npm") { $ver = read-cli-version $target }
+    elseif ($kind -eq "native-bun") { $ver = read-native-version $target }
+    Write-Host "  Claude Code 版本: $ver"
+
+    # 还原备份（安全验证）
+    if ($kind -eq "npm" -and $target) {
+        $bak = "$target.zh-cn-backup"
+        if (Test-Path $bak) {
+            $bakVer = read-cli-version $bak
+            if ($bakVer -eq $ver) {
+                $isClean = Select-String -Path $bak -Pattern "Quick safety check" -Quiet
+                if ($isClean) {
+                    Copy-Item $bak $target -Force
+                    Write-Host "  已从备份恢复原始 cli.js"
+                }
+            }
+        }
+    }
+
+    # 更新插件文件
+    Write-Host "  更新插件文件..."
+    sync-plugin
+    merge-settings
+    write-metadata
+    Write-Host "  插件和设置已更新"
+
+    # 重新 patch
+    initial-patch
+
+    Write-Host ""
+    Write-CN "更新完成！重启 Claude Code 生效" Green
+}
+
+# ======== 交互式向导 ========
 function run_install_wizard {
     if ($UpdateOnly -or $SkipBanner) { return }
     if ([Console]::IsInputRedirected) { return }
 
-    $markerExists = (Test-Path $MarkerFile) -or (Test-Path "$PluginDst\manifest.json")
-    if ($markerExists) { return }
+    Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
 
     Write-Host ""
-    Write-CN "欢迎使用 Claude Code 界面汉化插件安装向导" Blue
+    Write-CN "=== Claude Code 中文本地化 ===" Blue
     Write-Host ""
-    Write-Host "本向导将帮助您完成安装配置。"
+    Write-Host "  1. 一键汉化      首次使用，安装汉化插件 + 翻译 CLI 界面"
+    Write-Host "  2. 更新汉化      Claude Code 更新后，重新同步翻译和补丁"
+    Write-Host "  3. 卸载所有汉化   恢复英文原版，清除插件和设置"
+    Write-Host "  4. 打开备份文件夹"
+    Write-Host "  5. 手动备份       打包备份为 zip 放在用户目录"
     Write-Host ""
 
-    $reply = Read-Host "是否开始安装？(Y/n)"
-    if ($reply -match '^[Nn]') {
-        Write-Host "安装已取消。"
-        exit 0
+    $choice = Read-Host "请选择 (1-5，默认 1)"
+    Write-Host ""
+
+    switch ($choice) {
+        "2" {
+            do-update
+            exit 0
+        }
+        "3" {
+            do-uninstall
+            exit 0
+        }
+        "4" {
+            $backupDir = "$env:USERPROFILE\.claude"
+            if (Test-Path $backupDir) { explorer.exe $backupDir }
+            else { Write-CN "备份目录不存在" Yellow }
+            exit 0
+        }
+        "5" {
+            do-manual-backup
+            exit 0
+        }
+        default {
+            # 选项 1: 一键汉化
+            Write-CN "一键汉化" Green
+            Write-Host ""
+            Write-CN "安装模式：" Blue
+            Write-Host "  1. 标准安装（推荐）"
+            Write-Host "  2. 仅更新设置（不 patch CLI）"
+            Write-Host ""
+            $mode = Read-Host "选择模式 (1/2，默认 1)"
+            if ($mode -eq "2") {
+                $script:SkipCliPatch = $true
+                Write-CN "仅更新设置模式" Yellow
+            }
+            Write-Host ""
+        }
     }
-
-    Write-Host ""
-    Write-CN "安装模式说明：" Blue
-    Write-Host ""
-    Write-Host "  1. 标准安装（推荐）"
-    Write-Host "     - 自动检测 Claude Code 安装方式"
-    Write-Host "     - 合并中文设置到 settings.json"
-    Write-Host "     - 安装插件和 Hook"
-    Write-Host "     - 如支持，自动 patch CLI 硬编码文字"
-    Write-Host ""
-    Write-Host "  2. 仅更新设置"
-    Write-Host "     - 只更新 settings.json 和插件文件"
-    Write-Host "     - 不执行 CLI Patch"
-    Write-Host "     - 适合已有其他 CLI Patch 方案的用户"
-    Write-Host ""
-
-    $mode = Read-Host "选择安装模式 (1/2，默认 1)"
-    if ($mode -eq "2") {
-        Write-Host ""
-        Write-CN "将以「仅更新设置」模式安装" Yellow
-        $script:SkipCliPatch = $true
-    } else {
-        Write-Host ""
-        Write-CN "将以标准模式安装" Green
-    }
-
-    Write-Host ""
-    Write-CN "安装位置：" Blue
-    Write-Host "  设置文件:  $SettingsFile"
-    Write-Host "  插件目录:  $PluginDst"
-    Write-Host "  Launcher:  $LauncherBinDir"
-    Write-Host ""
-
-    $confirm = Read-Host "确认开始安装？(Y/n)"
-    if ($confirm -match '^[Nn]') {
-        Write-Host "安装已取消。"
-        exit 0
-    }
-    Write-Host ""
 }
 
 # ======== 主流程 ========

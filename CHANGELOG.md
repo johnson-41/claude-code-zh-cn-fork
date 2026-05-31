@@ -6,6 +6,38 @@
 - **次版本号**：新增功能或显著改进（比如新增 patch、新增翻译）
 - **修订号**：Bug 修复和小调整（比如修正一条翻译）
 
+## [2.5.0] - 2026-05-31
+
+### 新增
+
+- **上游同步机制**：新增 `scripts/sync-upstream.sh`，自动从 taekchef/claude-code-zh-cn 拉取翻译和 patch 引擎
+- **CI 自动同步**：新增 `.github/workflows/sync-upstream.yml`，每周自动检查上游更新并创建 PR
+- **Windows native experimental 支持**：support-window 新增 `windowsNativeExperimental` 通道（2.1.113 ~ 2.1.153）
+- **macOS native 支持扩展**：从 2.1.126 扩展到 2.1.156，新增 25 个已验证版本
+- **Doctor 诊断工具**：引入原版 `doctor.sh` + `plugin/scripts/zh-cn-doctor.js`（744 行），并增强 auto-repatch 和 auto-update 状态检查
+- **远程安装器**：引入 `install-remote.sh` / `uninstall-remote.sh`，支持从 GitHub Release asset 安装
+- **安装辅助脚本**：引入 `scripts/install-json-helper.js`
+- **Issue 模板**：新增 `.github/ISSUE_TEMPLATE/localization-not-effective.yml`
+- **翻译条目扩展**：从 1652 条增加到 1742 条（+90 条），覆盖 slash 命令菜单、CLI 参数、Bypass Permissions 提示等
+- **Windows WPF 可视化安装器**：新增 `install-gui.ps1`，双击打开原生暗色窗口，5 个傻瓜式按钮：一键汉化、更新汉化、卸载所有汉化（安全验证备份）、打开备份文件夹、手动备份（打包 zip 到用户目录）
+
+### 改进
+
+- **patch-cli.js 引擎升级**：从 731 行升级到 921 行，新增 6 个结构性 patch 函数：
+  - `translateFastModeTemplateLiteral` — /fast 动态模板翻译
+  - `applyDynamicLiteralTranslations` — 动态 model 名匹配
+  - `shouldSkipTranslationRule` — skipPatch 字段支持
+  - `installStatuslinePromptPathGuard` — statusline 路径安全
+  - `installDurationFormatterLocalization` — 通用 duration 函数匹配
+  - `installIssue80VisibleResidueLocalization` — JetBrains/model 切换等 UI 翻译
+  - 权限面板翻译（Bash command、Yes/No）
+- **Launcher PATH 过滤**：exec 前过滤掉 launcher 自身目录，防止 Claude Code 内部调用 claude 时递归拦截
+- **support-window.json 扩展**：从 64 行增加到 138 行，新增完整的 excluded 版本列表
+
+### 修复
+
+- **auto-repatch marker 写入**：`patch-cli.sh` 返回 0（无改动）时不再写 marker，避免旧翻译不被刷新
+
 ## [2.4.0] - 2026-04-30
 
 ### 新增

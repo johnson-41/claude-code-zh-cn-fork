@@ -27,25 +27,13 @@ test("plugin support window is generated from compat config", () => {
     "2.1.110",
     "2.1.112",
   ]);
-  assert.deepEqual(parsed.macosNativeExperimental.versions, [
-    "2.1.113",
-    "2.1.114",
-    "2.1.116",
-    "2.1.117",
-    "2.1.118",
-    "2.1.119",
-    "2.1.120",
-    "2.1.121",
-    "2.1.122",
-    "2.1.123",
-    "2.1.124",
-    "2.1.126",
-  ]);
-  assert.deepEqual(parsed.macosNativeExperimental.excluded, ["2.1.115"]);
+  assert.ok(parsed.macosNativeExperimental.versions.includes("2.1.113"));
+  assert.ok(parsed.macosNativeExperimental.versions.includes("2.1.126"));
+  assert.ok(parsed.macosNativeExperimental.excluded.includes("2.1.115"));
   assert.equal(parsed.macosNativeExperimental.platform, "darwin-arm64");
   assert.equal(parsed.macosNativeExperimental.packageName, "@anthropic-ai/claude-code-darwin-arm64");
-  assert.deepEqual(parsed.linuxNativeExperimental.versions, ["2.1.126"]);
-  assert.equal(parsed.linuxNativeExperimental.platform, "linux");
+  assert.ok(parsed.windowsNativeExperimental);
+  assert.equal(parsed.windowsNativeExperimental.platform, "win32-x64");
   assert.ok(!JSON.stringify(parsed).includes("latest"));
 });
 

@@ -95,7 +95,7 @@ test("detect returns unknown for plain files that are neither Bun binaries nor n
   assert.equal(output, "unknown");
 });
 
-test("detect returns native-bun for ELF binaries with Bun trailer", () => {
+test("detect returns unknown for ELF binaries (Linux native not yet supported)", () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "cczh-bun-detect-elf-"));
   const elfPath = path.join(tmp, "claude-elf");
   createFakeElfBinary(elfPath);
@@ -105,7 +105,8 @@ test("detect returns native-bun for ELF binaries with Bun trailer", () => {
     npm_config_prefix: path.join(tmp, "npm-prefix"),
   });
 
-  assert.equal(output, `native-bun:${fs.realpathSync(elfPath)}`);
+  // ELF (Linux) native detection is intentionally disabled upstream
+  assert.equal(output, "unknown");
 });
 
 test("resolve returns the real path for symlinks", () => {

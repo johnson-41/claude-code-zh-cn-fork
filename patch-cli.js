@@ -522,17 +522,174 @@ const specialSplitLiteralTranslations = [
 const specialLiteralTranslations = [
     { en: "Tab to amend", zh: "按 Tab 修改" },
     { en: "ctrl+e to explain", zh: "按 ctrl+e 说明" },
+    { en: "Any Bash command starting with", zh: "任意 Bash 命令以" },
+    { en: "任意 Bash 命令 starting with", zh: "任意 Bash 命令以" },
+    { en: "The Bash command ", zh: "Bash 命令 " },
+    { en: "Requires manual approval", zh: "需要手动批准" },
+    { en: "Waiting\\u2026", zh: "等待中…" },
+    { en: "Waiting for permission\\u2026", zh: "等待权限确认…" },
+    { en: "Working\\u2026", zh: "工作中…" },
+    { en: "Yes, and don\\u2019t ask again for", zh: "是，不再询问" },
+    { en: "Yes, and don’t ask again for", zh: "是，不再询问" },
     { en: " ready · shift+↓ to view", zh: " 已就绪 · 按 shift+↓ 查看" },
     { en: "Failed to save ", zh: "保存失败：" },
 ];
 
+function translateFastModeTemplateLiteral(literal) {
+    const exprParts = literal.parts?.filter((part) => part.type === "expr") ?? [];
+    const textParts = literal.parts?.filter((part) => part.type === "text") ?? [];
+    if (exprParts.length !== 1 || textParts.length !== 2) {
+        return false;
+    }
+
+    if (textParts[0].value !== "Toggle fast mode (") {
+        return false;
+    }
+
+    const hasOnlySuffix = textParts[1].value === " only)";
+    if (textParts[1].value !== ")" && !hasOnlySuffix) {
+        return false;
+    }
+
+    textParts[0].value = hasOnlySuffix ? "切换快速模式（仅 " : "切换快速模式（";
+    textParts[1].value = "）";
+    literal.text = literal.parts.map((part) => part.value).join("");
+    return true;
+}
+
+function applyDynamicLiteralTranslations(text) {
+    return text.replace(/Toggle fast mode \((Opus [^)]+?)( only)?\)/g, (_match, model, only) => {
+        return only ? `切换快速模式（仅 ${model}）` : `切换快速模式（${model}）`;
+    });
+}
+
+function shouldSkipTranslationRule(rule) {
+    return rule && (rule.skipPatch === true || rule.skipPatch === "model-prompt-contract");
+}
+
+function installStatuslinePromptPathGuard() {
+    const source =
+        "Your job is to create or update the statusLine command in the user's Claude Code settings.\n\nWhen asked to convert the user's shell PS1 configuration, follow these steps:";
+    const replacement =
+        "Your job is to create or update the statusLine command in the user's Claude Code settings.\n\nPath handling for tools:\n- Use shell-relative paths exactly as written when calling tools: ~/.zshrc, ~/.bashrc, ~/.bash_profile, ~/.profile, and ~/.claude/settings.json.\n- Never invent or guess an absolute /Users/... path; the host resolves ~ for the current user.\n\nWhen asked to convert the user's shell PS1 configuration, follow these steps:";
+    tryReplace(source, replacement);
+}
+
+function installStatuslineCommandPromptPathGuard() {
+    const guard =
+        " CRITICAL TOOL PATH RULE: use only ~/.zshrc, ~/.bashrc, ~/.bash_profile, ~/.profile, and ~/.claude/settings.json when calling Read, Edit, or Write; never use an absolute /Users/... path.";
+    tryRegexReplace(
+        /`Create an \$\{([^}]+)\} with subagent_type "statusline-setup" and the prompt "\$\{([^}]+)\}"`/g,
+        (match, agentExpr, promptExpr) => {
+            if (match.includes("CRITICAL TOOL PATH RULE")) {
+                return match;
+            }
+            return (
+                "`Create an ${" +
+                agentExpr +
+                '} with subagent_type "statusline-setup" and the prompt "${' +
+                promptExpr +
+                "}" +
+                guard +
+                '"`'
+            );
+        }
+    );
+}
+
+function installDurationFormatterLocalization() {
+    const signature = /function\s+[A-Za-z0-9_$]+\([^)]*\)\{if\([A-Za-z0-9_$]+<60000\)/g;
+    let match;
+
+    while ((match = signature.exec(s)) !== null) {
+        const fnStart = match.index;
+        const bodyStart = s.indexOf("{", fnStart);
+        if (bodyStart === -1) continue;
+
+        let depth = 0;
+        let fnEnd = -1;
+        for (let i = bodyStart; i < s.length; i++) {
+            if (s[i] === "{") depth++;
+            else if (s[i] === "}") depth--;
+            if (depth === 0) {
+                fnEnd = i;
+                break;
+            }
+        }
+        if (fnEnd === -1) continue;
+
+        let fn = s.slice(fnStart, fnEnd + 1);
+        if (!fn.includes("mostSignificantOnly") || !fn.includes("toFixed(1)") || !fn.includes("Math.floor")) {
+            continue;
+        }
+
+        const localized = fn
+            .replace(/"0s"/g, '"0秒"')
+            .replace(/}d\s+\$\{/g, "}天${")
+            .replace(/}h\s+\$\{/g, "}时${")
+            .replace(/}m\s+\$\{/g, "}分${")
+            .replace(/}d/g, "}天")
+            .replace(/}h/g, "}时")
+            .replace(/}m/g, "}分")
+            .replace(/}s/g, "}秒");
+
+        if (localized !== fn) {
+            s = s.slice(0, fnStart) + localized + s.slice(fnEnd + 1);
+            count++;
+            signature.lastIndex = fnStart + localized.length;
+        }
+    }
+}
+
+function installIssue80VisibleResidueLocalization() {
+    // Dynamic UI fragments from Claude Code 2.1.153: keep these structural so
+    // broad shards like "Install the " and "Set model to " do not leak into prompts.
+    tryRegexReplace(
+        /([A-Za-z0-9_$]+(?:\.default)?)\.createElement\(([^,]+),null,"Install the ",\1\.createElement\(\2,\{color:"ide"\},([A-Za-z0-9_$]+)\)," plugin from the JetBrains Marketplace:"," ",\1\.createElement\(\2,\{bold:!0\},"https:\/\/docs\.claude\.com\/s\/claude-code-jetbrains"\)\)/g,
+        (match, factory, component, ideName) =>
+            `${factory}.createElement(${component},null,"从 JetBrains Marketplace 安装 ",${factory}.createElement(${component},{color:"ide"},${ideName})," 插件："," ",${factory}.createElement(${component},{bold:!0},"https://docs.claude.com/s/claude-code-jetbrains"))`
+    );
+
+    tryRegexReplace(
+        /let ([A-Za-z0-9_$]+)=`Set model to \$\{([^}]+)\}\$\{([^}]+)\?" and saved as your default for new sessions":" for this session only"\}`/g,
+        (match, messageVar, modelExpr, defaultExpr) =>
+            `let ${messageVar}=\`已切换模型为 \${${modelExpr}}\${${defaultExpr}?"，并已保存为新会话默认模型":"（仅本次会话）"}\``
+    );
+
+    tryRegexReplace(
+        /(\blet\s+|,)([A-Za-z0-9_$]+)=`Model set to \$\{([^}]+)\}\$\{([^}]+)\?" and saved as your default for new sessions":" for this session only"\}`/g,
+        (match, prefix, messageVar, modelExpr, defaultExpr) =>
+            `${prefix}${messageVar}=\`已切换模型为 \${${modelExpr}}\${${defaultExpr}?"，并已保存为新会话默认模型":"（仅本次会话）"}\``
+    );
+
+    tryRegexReplace(
+        /([A-Za-z0-9_$]+)\(`Set model to \$\{([^}]+)\}`\)/g,
+        (match, notifyFn, modelExpr) => `${notifyFn}(\`已切换模型为 \${${modelExpr}}\`)`
+    );
+
+    tryRegexReplace(
+        /return`Review the current diff for correctness bugs and reuse\/simplification\/efficiency cleanups at the given effort level \(low\/medium: fewer, high-confidence findings; high\\u2192max: broader coverage, may include uncertain findings\$\{([^}]+)\}\)\. Pass --comment to post findings as inline PR comments, or --fix to apply the findings to the working tree after the review\.`/g,
+        (match, ultraExpr) => {
+            const ultraCondition = ultraExpr.match(/^([^?]+)\?/)?.[1] || "false";
+            return `return\`审查当前 diff 的正确性问题，以及复用性、简化和效率改进；按指定 effort 级别执行（low/medium：只报更少、更高置信的问题；high→max：覆盖更广，可能包含不确定问题\${${ultraCondition}?"；ultra：云端深度多 Agent review":""}）。传 --comment 可将发现发布为 PR 行内评论，传 --fix 可在 review 后把发现应用到工作区。\``;
+        }
+    );
+}
+
 // === 特殊 patch（基于精确代码模式匹配，安全）===
 // 这些 patch 匹配非常特定的代码模式，不会误伤标识符
 
+// 0. /statusline 内部 agent prompt 防守：第三方模型容易猜错 /Users/... 绝对路径。
+// 保持英文，不做中文化；只强化工具路径契约。
+installStatuslinePromptPathGuard();
+installStatuslineCommandPromptPathGuard();
+installDurationFormatterLocalization();
+installIssue80VisibleResidueLocalization();
+
 // 1. 过去式动词数组
-tryReplace(
-    '["Baked","Brewed","Churned","Cogitated","Cooked","Crunched","Saut\u00e9ed","Worked"]',
-    '["烘焙了","沏了","翻搅了","琢磨了","烹饪了","嚼了","翻炒了","忙活了"]'
+tryRegexReplace(
+    /\["Baked","Brewed","Churned","Cogitated","Cooked","Crunched","Saut(?:\u00e9|\\u00e9|\\xE9)ed","Worked"\]/g,
+    () => '["烘焙了","沏了","翻搅了","琢磨了","烹饪了","嚼了","翻炒了","忙活了"]'
 );
 
 // 2. Tip: → 💡
@@ -641,6 +798,20 @@ tryRegexReplace(
         `${factory}.createElement(${containerComponent},{marginTop:1},${factory}.createElement(${textComponent},{dimColor:!0},"在 "),${factory}.createElement(${textComponent},{bold:!0,dimColor:!0},${terminalName}),${factory}.createElement(${textComponent},{dimColor:!0},' 中用 "/plan open" 编辑此计划'))`
 );
 
+// 7. 权限确认面板的新 native UI 片段（避免全局翻译 Bash/Yes/No 误伤系统提示）
+tryRegexReplace(
+    /title:([A-Za-z0-9_$]+)&&!([A-Za-z0-9_$]+)\?"Bash command \(unsandboxed\)":"Bash command"/g,
+    (match, sandboxed, visible) =>
+        `title:${sandboxed}&&!${visible}?"Bash 命令（未沙盒隔离）":"Bash 命令"`
+);
+tryRegexReplace(/label:"Yes",value:"yes"/g, () => 'label:"是",value:"yes"');
+tryRegexReplace(/label:"No",value:"no"/g, () => 'label:"否",value:"no"');
+tryRegexReplace(
+    /([A-Za-z0-9_$]+(?:\.default)?)\.createElement\(([^,]+),\{dimColor:!0\},"Any use of the ",\1\.createElement\(\2,\{bold:!0\},([^)]*)\)," tool"\)/g,
+    (match, factory, component, toolName) =>
+        `${factory}.createElement(${component},{dimColor:!0},"任意使用 ",${factory}.createElement(${component},{bold:!0},${toolName})," 工具")`
+);
+
 // === 逐条翻译：只替换真实的字符串字面量 ===
 //
 // 先处理 minifier 把 `'` 拆成 `"foo","'","bar"` 的高风险字面量（folder trust、/btw 等），
@@ -649,7 +820,9 @@ tryRegexReplace(
 
 if (translationsFile && fs.existsSync(translationsFile)) {
     const translationRules = [
-        ...JSON.parse(fs.readFileSync(translationsFile, "utf8")),
+        ...JSON.parse(fs.readFileSync(translationsFile, "utf8")).filter(
+            (rule) => !shouldSkipTranslationRule(rule)
+        ),
         ...specialLiteralTranslations,
         ...specialSplitLiteralTranslations,
     ];
@@ -664,6 +837,23 @@ if (translationsFile && fs.existsSync(translationsFile)) {
 
     const literals = scanStringLiterals(s);
     let literalsChanged = false;
+
+    for (const literal of literals) {
+        if (literal.quote === "`") {
+            if (translateFastModeTemplateLiteral(literal)) {
+                literalsChanged = true;
+                count++;
+            }
+            continue;
+        }
+
+        const replaced = applyDynamicLiteralTranslations(literal.text);
+        if (replaced !== literal.text) {
+            literal.text = replaced;
+            literalsChanged = true;
+            count++;
+        }
+    }
 
     for (const { en, zh } of translationRules) {
         if (en === zh) continue;

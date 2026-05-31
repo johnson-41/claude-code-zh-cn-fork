@@ -3,12 +3,12 @@
  * bun-binary-io.js — Bun 原生二进制 I/O 工具
  *
  * 从 tweakcc (Piebald-AI/tweakcc) 的 nativeInstallation.ts 精简移植。
- * 仅支持 macOS (Mach-O)，v1 标记为实验性功能。
+ * 支持 macOS (Mach-O) 与 Windows (PE)，仍按平台版本窗口开放。
  *
  * CLI 子命令：
  *   detect <claude-cmd>     → 输出 "npm:<path>" 或 "native-bun:<path>" 或 "unknown"
  *   extract <binary> <out>  → 提取内嵌 JS 到 <out>
- *   repack <binary> <js>    → 将修改后的 JS 写回二进制（含 codesign）
+ *   repack <binary> <js>    → 将修改后的 JS 写回二进制（macOS 含 codesign）
  *   version <binary>        → 输出二进制内嵌的版本号
  *   resolve <path>          → 输出 realpath（跨平台 symlink 解析）
  *   check-deps              → 检查 node-lief 是否可用
@@ -19,6 +19,7 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const os = require("os");
 const { execSync, execFileSync } = require("child_process");
 
 // ============================================================================
@@ -114,9 +115,9 @@ function detectInstallation(claudeCmd) {
   try { realPath = fs.realpathSync(claudeCmd); } catch { return "unknown"; }
 
   // 2. 先判真实目标本身是不是 Bun 二进制（Codex 二审 #1）
-  //    PE 格式暂不支持 repack，跳过 CLI Patch（设置和 Hook 仍生效）
+  //    仅支持 Mach-O（macOS），ELF (Linux) 暂不开放
   const format = detectBinaryFormat(realPath);
-  if ((format === "MachO64" || format === "MachO32" || format === "ELF") && hasBunTrailer(realPath)) {
+  if ((format === "MachO64" || format === "MachO32" || format === "PE") && hasBunTrailer(realPath)) {
     return "native-bun:" + realPath;
   }
 
@@ -134,7 +135,7 @@ function detectInstallation(claudeCmd) {
     "node_modules/@anthropic-ai/claude-code/bin/claude.exe");
   if (fs.existsSync(npmExe)) {
     const exeFormat = detectBinaryFormat(npmExe);
-    if ((exeFormat === "MachO64" || exeFormat === "MachO32" || exeFormat === "ELF") && hasBunTrailer(npmExe)) {
+    if ((exeFormat === "PE" || exeFormat === "MachO64" || exeFormat === "MachO32") && hasBunTrailer(npmExe)) {
       return "native-bun:" + npmExe;
     }
   }
@@ -149,7 +150,7 @@ function detectInstallation(claudeCmd) {
     const npmExe2 = path.join(globalRoot, "@anthropic-ai/claude-code/bin/claude.exe");
     if (fs.existsSync(npmExe2)) {
       const exeFormat2 = detectBinaryFormat(npmExe2);
-      if ((exeFormat2 === "PE" || exeFormat2 === "MachO64" || exeFormat2 === "MachO32" || exeFormat2 === "ELF") && hasBunTrailer(npmExe2)) {
+      if ((exeFormat2 === "PE" || exeFormat2 === "MachO64" || exeFormat2 === "MachO32") && hasBunTrailer(npmExe2)) {
         return "native-bun:" + npmExe2;
       }
     }
@@ -175,7 +176,7 @@ function getStringPointerContent(buffer, sp) {
 
 function parseOffsets(buffer) {
   let pos = 0;
-  const offsetsOffset = buffer.readBigUInt64LE(pos);
+  const byteCount = buffer.readBigUInt64LE(pos);
   pos += 8;
   const modulesPtr = parseStringPointer(buffer, pos);
   pos += 8;
@@ -184,7 +185,7 @@ function parseOffsets(buffer) {
   const compileExecArgvPtr = parseStringPointer(buffer, pos);
   pos += 8;
   const flags = buffer.readUInt32LE(pos);
-  return { offsetsOffset, modulesPtr, entryPointId, compileExecArgvPtr, flags };
+  return { byteCount, modulesPtr, entryPointId, compileExecArgvPtr, flags };
 }
 
 function detectModuleStructSize(modulesListLength) {
@@ -291,25 +292,45 @@ function extractFromMachO(LIEF, binaryPath) {
   return extractBunDataFromSection(bunSection.content);
 }
 
-function extractFromELF(LIEF, binaryPath) {
+function extractFromPE(LIEF, binaryPath) {
   LIEF.logging.disable();
   const binary = LIEF.parse(binaryPath);
 
-  const bunSection = binary.getSection(".bun");
-  if (!bunSection) throw new Error(".bun section not found");
+  for (const section of binary.sections()) {
+    try {
+      const parsed = extractBunDataFromSection(section.content);
+      return { ...parsed, section, binary };
+    } catch {}
+  }
 
-  return { ...extractBunDataFromSection(bunSection.content), elfSectionOffset: Number(bunSection.fileOffset) };
+  throw new Error("Bun section not found in PE binary");
 }
 
-function extractFromBinary(LIEF, binaryPath) {
-  const format = detectBinaryFormat(binaryPath);
-  if (format === "MachO64" || format === "MachO32") {
-    return extractFromMachO(LIEF, binaryPath);
+function extractNativeBun(LIEF, binaryPath) {
+  LIEF.logging.disable();
+  const binary = LIEF.parse(binaryPath);
+
+  switch (binary.format) {
+    case "MachO": {
+      const bunSegment = binary.getSegment("__BUN");
+      if (!bunSegment) throw new Error("__BUN segment not found");
+      const section = bunSegment.getSection("__bun");
+      if (!section) throw new Error("__bun section not found");
+      const parsed = extractBunDataFromSection(section.content);
+      return { ...parsed, format: "MachO", binary, section, segment: bunSegment };
+    }
+    case "PE": {
+      for (const section of binary.sections()) {
+        try {
+          const parsed = extractBunDataFromSection(section.content);
+          return { ...parsed, format: "PE", binary, section };
+        } catch {}
+      }
+      throw new Error("Bun section not found in PE binary");
+    }
+    default:
+      throw new Error(`Unsupported native binary format: ${binary.format || "unknown"}`);
   }
-  if (format === "ELF") {
-    return extractFromELF(LIEF, binaryPath);
-  }
-  throw new Error(`Unsupported binary format: ${format}`);
 }
 
 function findClaudeModule(bunData, bunOffsets, moduleStructSize) {
@@ -472,6 +493,28 @@ function atomicWriteBinary(LIEF, binary, outputPath, originalPath) {
   }
 }
 
+function runCodesign(args, action) {
+  try {
+    execFileSync("codesign", args, { stdio: ["ignore", "pipe", "pipe"] });
+  } catch (error) {
+    const stderr = Buffer.isBuffer(error.stderr) ? error.stderr.toString("utf8").trim() : "";
+    const detail = stderr ? `: ${stderr}` : "";
+    throw new Error(`codesign ${action} failed${detail}`);
+  }
+}
+
+function signAndVerifyMachO(outputPath) {
+  runCodesign(["-s", "-", "-f", outputPath], "sign");
+  runCodesign(["--verify", "--strict", "--verbose=4", outputPath], "verify");
+}
+
+function verifyPERepack(LIEF, outputPath, expectedBunBuffer) {
+  const { bunData } = extractNativeBun(LIEF, outputPath);
+  if (!bunData.equals(expectedBunBuffer)) {
+    throw new Error("PE repack verification failed: embedded Bun data did not round-trip");
+  }
+}
+
 function repackMachO(LIEF, machoBinary, binPath, newBunBuffer, outputPath, sectionHeaderSize) {
   // 移除旧签名
   if (machoBinary.hasCodeSignature) {
@@ -499,80 +542,20 @@ function repackMachO(LIEF, machoBinary, binPath, newBunBuffer, outputPath, secti
 
   atomicWriteBinary(LIEF, machoBinary, outputPath, binPath);
 
-  // macOS 重签名
-  try {
-    execFileSync("codesign", ["-s", "-", "-f", outputPath], { stdio: "ignore" });
-  } catch {
-    process.stderr.write("Warning: codesign failed, binary may not run on macOS\n");
-  }
+  // macOS 必须重签并通过校验；否则运行时会被系统直接 kill。
+  signAndVerifyMachO(outputPath);
 }
 
-function repackELF(LIEF, binPath, newBunBuffer, elfSectionOffset, sectionHeaderSize) {
+function repackPE(LIEF, peBinary, binPath, newBunBuffer, outputPath, sectionHeaderSize, section) {
   const newSectionData = buildSectionData(newBunBuffer, sectionHeaderSize);
-
-  // 读取原始 section 大小（优先从备份读取，避免 ETXTBSY）
-  const backupPath = binPath + ".zh-cn-backup";
-  const readSource = fs.existsSync(backupPath) ? backupPath : binPath;
-  const fd = fs.openSync(readSource, "r");
-  const origHeader = Buffer.alloc(sectionHeaderSize);
-  fs.readSync(fd, origHeader, 0, sectionHeaderSize, elfSectionOffset);
-  fs.closeSync(fd);
-
-  const origDataSize = sectionHeaderSize === 8
-    ? Number(origHeader.readBigUInt64LE(0))
-    : origHeader.readUInt32LE(0);
-  const origSectionSize = sectionHeaderSize + origDataSize;
-
-  if (newSectionData.length > origSectionSize) {
-    // section 需要扩展：用 LIEF 移除旧 section 并添加新的 loaded section
-    const sourcePath = readSource;
-    const tmpPath = binPath + ".zh-cn-tmp";
-    try {
-      const binary = LIEF.parse(sourcePath);
-      const oldSection = binary.getSection(".bun");
-      if (oldSection) {
-        binary.remove(oldSection);
-      }
-      const newSection = new LIEF.ELF.Section(".bun");
-      newSection.content = Array.from(newSectionData);
-      binary.add(newSection, true);
-      atomicWriteBinary(LIEF, binary, tmpPath, sourcePath);
-      fs.renameSync(tmpPath, binPath);
-    } catch (error) {
-      try { if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath); } catch {}
-      if (error && (error.code === "ETXTBSY" || error.code === "EBUSY" || error.code === "EPERM")) {
-        throw new Error("Cannot update the Claude executable while it is running. Please close all Claude instances and try again.");
-      }
-      throw error;
-    }
-    return;
+  section.content = newSectionData;
+  section.size = BigInt(newSectionData.length);
+  if ("virtualSize" in section) {
+    section.virtualSize = BigInt(newSectionData.length);
   }
 
-  // section 大小足够：原地替换
-  const tmpPath = binPath + ".zh-cn-tmp";
-  fs.copyFileSync(readSource, tmpPath);
-  try {
-    const fd2 = fs.openSync(tmpPath, "r+");
-    try {
-      fs.writeSync(fd2, newSectionData, 0, newSectionData.length, elfSectionOffset);
-      if (newSectionData.length < origSectionSize) {
-        const padding = Buffer.alloc(origSectionSize - newSectionData.length);
-        fs.writeSync(fd2, padding, 0, padding.length, elfSectionOffset + newSectionData.length);
-      }
-    } finally {
-      fs.closeSync(fd2);
-    }
-
-    const origStat = fs.statSync(readSource);
-    fs.chmodSync(tmpPath, origStat.mode);
-    fs.renameSync(tmpPath, binPath);
-  } catch (error) {
-    try { if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath); } catch {}
-    if (error && (error.code === "ETXTBSY" || error.code === "EBUSY" || error.code === "EPERM")) {
-      throw new Error("Cannot update the Claude executable while it is running. Please close all Claude instances and try again.");
-    }
-    throw error;
-  }
+  atomicWriteBinary(LIEF, peBinary, outputPath, binPath);
+  verifyPERepack(LIEF, outputPath, newBunBuffer);
 }
 
 // ============================================================================
@@ -600,7 +583,7 @@ function cmdExtract() {
     process.exit(1);
   }
 
-  const { bunData, bunOffsets, moduleStructSize } = extractFromBinary(LIEF, binaryPath);
+  const { bunData, bunOffsets, moduleStructSize } = extractNativeBun(LIEF, binaryPath);
   const found = findClaudeModule(bunData, bunOffsets, moduleStructSize);
   if (!found || found.contents.length === 0) {
     process.stderr.write("Error: claude module not found in binary\n");
@@ -627,24 +610,83 @@ function cmdRepack() {
 
   LIEF.logging.disable();
   const modifiedJs = fs.readFileSync(jsPath);
-
-  const format = detectBinaryFormat(binaryPath);
-  const extracted = extractFromBinary(LIEF, binaryPath);
-  const { bunOffsets, bunData, sectionHeaderSize, moduleStructSize } = extracted;
+  const { format, binary, section, segment, bunOffsets, bunData, sectionHeaderSize, moduleStructSize } = extractNativeBun(LIEF, binaryPath);
   const newBuffer = rebuildBunData(bunData, bunOffsets, modifiedJs, moduleStructSize);
 
-  if (format === "MachO64" || format === "MachO32") {
-    const binary = LIEF.parse(binaryPath);
-    repackMachO(LIEF, binary, binaryPath, newBuffer, binaryPath, sectionHeaderSize);
-  } else if (format === "ELF") {
-    const elfSectionOffset = extracted.elfSectionOffset;
-    repackELF(LIEF, binaryPath, newBuffer, elfSectionOffset, sectionHeaderSize);
-  } else {
-    process.stderr.write(`Error: unsupported binary format: ${format}\n`);
-    process.exit(1);
+  switch (format) {
+    case "MachO":
+      repackMachO(LIEF, binary, binaryPath, newBuffer, binaryPath, sectionHeaderSize, segment);
+      break;
+    case "PE":
+      repackPE(LIEF, binary, binaryPath, newBuffer, binaryPath, sectionHeaderSize, section);
+      break;
+    default:
+      process.stderr.write(`Error: unsupported native binary format ${format || "unknown"}\n`);
+      process.exit(1);
+  }
+  process.stdout.write("ok");
+}
+
+function isClaudePackageName(name) {
+  return name === "@anthropic-ai/claude-code" ||
+    name === "@anthropic-ai/claude-code-darwin-arm64" ||
+    name === "@anthropic-ai/claude-code-win32-x64";
+}
+
+function normalizeSemver(value) {
+  const match = String(value || "").match(/\b\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?\b/);
+  return match ? match[0] : "";
+}
+
+function readPackageVersionNearBinary(binaryPath) {
+  let dir;
+  try {
+    dir = path.dirname(fs.realpathSync(binaryPath));
+  } catch {
+    dir = path.dirname(path.resolve(binaryPath));
   }
 
-  process.stdout.write("ok");
+  for (let depth = 0; depth < 6; depth++) {
+    const packageJson = path.join(dir, "package.json");
+    try {
+      const pkg = JSON.parse(fs.readFileSync(packageJson, "utf8"));
+      const version = normalizeSemver(pkg.version);
+      if (version && isClaudePackageName(pkg.name)) return version;
+    } catch {}
+
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+
+  return "";
+}
+
+function readExecutableVersion(binaryPath) {
+  let tempHome = "";
+  try {
+    tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "cczh-version-home-"));
+    const output = execFileSync(binaryPath, ["--version"], {
+      encoding: "utf8",
+      timeout: 10000,
+      stdio: ["ignore", "pipe", "pipe"],
+      env: {
+        ...process.env,
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+        XDG_CONFIG_HOME: path.join(tempHome, ".config"),
+        XDG_CACHE_HOME: path.join(tempHome, ".cache"),
+        XDG_DATA_HOME: path.join(tempHome, ".local", "share"),
+      },
+    });
+    return normalizeSemver(output);
+  } catch {
+    return "";
+  } finally {
+    if (tempHome) {
+      try { fs.rmSync(tempHome, { recursive: true, force: true }); } catch {}
+    }
+  }
 }
 
 function cmdVersion() {
@@ -655,27 +697,26 @@ function cmdVersion() {
   }
 
   const LIEF = loadNodeLief();
-  if (!LIEF) {
-    process.stdout.write("");
-    return;
-  }
 
   try {
-    const { bunData, bunOffsets, moduleStructSize } = extractFromBinary(LIEF, binaryPath);
-    const found = findClaudeModule(bunData, bunOffsets, moduleStructSize);
-    if (found && found.contents.length > 0) {
-      // 从 JS 内容头部提取版本号（匹配 "// Version: X.Y.Z" 格式）
-      const header = found.contents.subarray(0, 1000).toString("utf-8");
-      const match = header.match(/\/\/ Version: (\S+)/);
-      if (match) {
-        process.stdout.write(match[1]);
-        return;
+    if (LIEF) {
+      const { bunData, bunOffsets, moduleStructSize } = extractNativeBun(LIEF, binaryPath);
+      const found = findClaudeModule(bunData, bunOffsets, moduleStructSize);
+      if (found && found.contents.length > 0) {
+        // 从 JS 内容头部提取版本号（匹配 "// Version: X.Y.Z" 格式）
+        const header = found.contents.subarray(0, 200).toString("utf-8");
+        const match = header.match(/\/\/ Version: (\S+)/);
+        if (match) {
+          process.stdout.write(match[1]);
+          return;
+        }
       }
     }
-    process.stdout.write("");
   } catch {
-    process.stdout.write("");
+    // 继续走下面的安装包/可执行文件回退识别。
   }
+
+  process.stdout.write(readPackageVersionNearBinary(binaryPath) || readExecutableVersion(binaryPath) || "");
 }
 
 function cmdResolve() {

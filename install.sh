@@ -166,21 +166,11 @@ check_dependencies() {
         if is_supported_native_version "$native_version"; then
             if [ "$dep_status" != "ok" ]; then
                 echo ""
-                echo -e "${YELLOW}检测到已验证原生二进制版本 ${native_version:-unknown}，CLI Patch 需要 node-lief${NC}"
-                echo -e "  运行: ${GREEN}npm install -g node-lief${NC}"
-
-                # 询问是否自动安装
-                if [ "$UPDATE_ONLY" != true ] && [ "$SKIP_BANNER" != "1" ]; then
-                    read -p "  是否自动安装 node-lief？(Y/n) " -n 1 -r
-                    echo ""
-                    if [[ ! $REPLY =~ ^[Nn]$ ]]; then
-                        echo -e "  ${BLUE}正在安装 node-lief...${NC}"
-                        if npm install -g node-lief 2>/dev/null; then
-                            echo -e "  ${GREEN}✓${NC} node-lief 安装成功"
-                        else
-                            echo -e "  ${RED}✗${NC} node-lief 安装失败，请手动运行: npm install -g node-lief"
-                        fi
-                    fi
+                echo -e "${YELLOW}检测到已验证原生二进制版本 ${native_version:-unknown}，正在自动安装 node-lief...${NC}"
+                if npm install -g node-lief 2>/dev/null; then
+                    echo -e "  ${GREEN}✓${NC} node-lief 安装成功"
+                else
+                    echo -e "  ${RED}✗${NC} node-lief 安装失败，请手动运行: npm install -g node-lief"
                 fi
             else
                 echo -e "  ${GREEN}✓${NC} node-lief"
@@ -614,11 +604,20 @@ patch_native_binary() {
     local dep_status
     dep_status="$(node "$PLUGIN_SRC/bun-binary-io.js" check-deps 2>/dev/null || echo "missing")"
     if [ "$dep_status" != "ok" ]; then
-        echo -e "${YELLOW}需要安装 node-lief 来支持官方安装器 native patch${NC}"
-        echo -e "  运行: ${GREEN}npm install -g node-lief${NC}"
-        echo -e "  然后重新运行 ./install.sh"
-        CLI_PATCH_STATUS_SUMMARY="已跳过（官方安装器 CLI Patch 需要 node-lief）"
-        return
+        echo -e "${YELLOW}正在安装 node-lief（原生二进制 patch 依赖）...${NC}"
+        if npm install -g node-lief 2>/dev/null; then
+            dep_status="$(node "$PLUGIN_SRC/bun-binary-io.js" check-deps 2>/dev/null || echo "missing")"
+            if [ "$dep_status" != "ok" ]; then
+                echo -e "${RED}node-lief 安装后仍不可用，请手动运行: npm install -g node-lief${NC}"
+                CLI_PATCH_STATUS_SUMMARY="已跳过（node-lief 安装失败）"
+                return
+            fi
+            echo -e "${GREEN}  node-lief 安装成功${NC}"
+        else
+            echo -e "${RED}node-lief 安装失败，请手动运行: npm install -g node-lief${NC}"
+            CLI_PATCH_STATUS_SUMMARY="已跳过（node-lief 安装失败）"
+            return
+        fi
     fi
 
     backup_version=""

@@ -1,27 +1,72 @@
 {
   "packageName": "@anthropic-ai/claude-code",
   "baseline": {
-    "versions": ["2.1.92", "2.1.97", "2.1.104", "2.1.107", "2.1.110", "2.1.112"],
+    "versions": [
+      "2.1.92",
+      "2.1.97",
+      "2.1.104",
+      "2.1.107",
+      "2.1.110",
+      "2.1.112"
+    ],
     "includeLatestFromNpm": false
   },
   "checks": {
     "sentinels": [
-      { "id": "quick_safety_check", "pattern": "Quick safety check" },
-      { "id": "security_guide", "pattern": "Security guide" },
+      {
+        "id": "quick_safety_check",
+        "pattern": "Quick safety check"
+      },
+      {
+        "id": "security_guide",
+        "pattern": "Security guide"
+      },
       {
         "id": "btw_prompt",
         "pattern": "Use /btw to ask a quick side question without interrupting Claude's current work"
       },
-      { "id": "approval_reason", "pattern": "This command requires approval" },
-      { "id": "proceed_prompt", "pattern": "Do you want to proceed?" },
-      { "id": "tab_to_amend", "pattern": "Tab to amend" },
-      { "id": "ctrl_e_to_explain", "pattern": "ctrl+e to explain" }
+      {
+        "id": "approval_reason",
+        "pattern": "This command requires approval"
+      },
+      {
+        "id": "proceed_prompt",
+        "pattern": "Do you want to proceed?"
+      },
+      {
+        "id": "tab_to_amend",
+        "pattern": "Tab to amend"
+      },
+      {
+        "id": "ctrl_e_to_explain",
+        "pattern": "ctrl+e to explain"
+      },
+      {
+        "id": "native_permission_title_unsandboxed_residue",
+        "pattern": "Bash command (unsandboxed)"
+      },
+      {
+        "id": "native_permission_waiting_escaped",
+        "pattern": "Waiting\\u2026"
+      }
     ],
     "templateResidues": [
-      { "id": "duration_worked", "pattern": "Worked for" },
-      { "id": "duration_idle", "pattern": "Idle for" },
-      { "id": "duration_guarded", "regex": "&&`\\$\\{[^}]+\\} for \\$\\{[^}]+\\}`" },
-      { "id": "duration_literal_connector", "regex": ",\\s*\" for \"\\s*," }
+      {
+        "id": "duration_worked",
+        "pattern": "Worked for"
+      },
+      {
+        "id": "duration_idle",
+        "pattern": "Idle for"
+      },
+      {
+        "id": "duration_guarded",
+        "regex": "&&`\\$\\{[^}]+\\} for \\$\\{[^}]+\\}`"
+      },
+      {
+        "id": "duration_literal_connector",
+        "regex": ",\\s*\" for \"\\s*,"
+      }
     ],
     "upstreamTextGuards": [
       {
@@ -33,6 +78,79 @@
         "id": "advisor_dialog_title",
         "rule": "preserve",
         "pattern": "title:\"Advisor Tool\""
+      },
+      {
+        "id": "system_prompt_short_concise",
+        "rule": "preserve",
+        "pattern": "Your responses should be short and concise."
+      },
+      {
+        "id": "system_prompt_memory_contract",
+        "rule": "preserve",
+        "pattern": "Saving a memory is a two-step process:"
+      },
+      {
+        "id": "system_prompt_environment_header",
+        "rule": "preserve",
+        "pattern": "You have been invoked in the following environment:"
+      },
+      {
+        "id": "statusline_setup_agent_prompt",
+        "rule": "preserve",
+        "pattern": "You are a status line setup agent for Claude Code."
+      },
+      {
+        "id": "statusline_setup_home_path_guard",
+        "rule": "preserve",
+        "sourcePattern": "You are a status line setup agent for Claude Code.",
+        "pattern": "Never invent or guess an absolute /Users/... path"
+      },
+      {
+        "id": "statusline_command_agent_prompt_path_guard",
+        "rule": "preserve",
+        "sourcePattern": "with subagent_type \"statusline-setup\" and the prompt",
+        "pattern": "when calling Read, Edit, or Write"
+      },
+      {
+        "id": "native_permission_title",
+        "rule": "translate",
+        "sourcePattern": "\"Bash command (unsandboxed)\":\"Bash command\"",
+        "pattern": "\"Bash 命令（未沙盒隔离）\":\"Bash 命令\""
+      },
+      {
+        "id": "native_permission_yes_option_label",
+        "rule": "translate",
+        "sourcePattern": "label:\"Yes\",value:\"yes\"",
+        "pattern": "label:\"是\",value:\"yes\""
+      },
+      {
+        "id": "native_permission_no_option_label",
+        "rule": "translate",
+        "sourcePattern": "label:\"No\",value:\"no\"",
+        "pattern": "label:\"否\",value:\"no\""
+      },
+      {
+        "id": "native_permission_dont_ask_again_prefix",
+        "rule": "translate",
+        "sourceRegex": "Yes, and don(?:\\\\u2019|[’'])t ask again for",
+        "pattern": "label:\"是，不再询问\""
+      },
+      {
+        "id": "compact_duration_zero_seconds",
+        "rule": "translate",
+        "sourceRegex": "if\\([A-Za-z0-9_$]+<60000\\)\\{if\\([A-Za-z0-9_$]+===0\\)return\"0s\"",
+        "regex": "if\\([A-Za-z0-9_$]+<60000\\)\\{if\\([A-Za-z0-9_$]+===0\\)return\"0秒\""
+      },
+      {
+        "id": "compact_duration_template_units",
+        "rule": "translate",
+        "sourceRegex": "mostSignificantOnly[\\s\\S]*?return`\\$\\{[^}]+\\}d`[\\s\\S]*?return`\\$\\{[^}]+\\}h`[\\s\\S]*?return`\\$\\{[^}]+\\}m`[\\s\\S]*?return`\\$\\{[^}]+\\}s`",
+        "regex": "mostSignificantOnly[\\s\\S]*?return`\\$\\{[^}]+\\}天`[\\s\\S]*?return`\\$\\{[^}]+\\}时`[\\s\\S]*?return`\\$\\{[^}]+\\}分`[\\s\\S]*?return`\\$\\{[^}]+\\}秒`"
+      },
+      {
+        "id": "web_search_exact_terms_contract",
+        "rule": "preserve",
+        "pattern": "Use exact search terms without * or ?"
       },
       {
         "id": "stop_ultrareview_label",
@@ -51,39 +169,258 @@
         "rule": "template",
         "sourceRegex": "text:`\\$\\{[^}]+\\}Ultrareview launched for \\$\\{[^}]+\\} \\(\\$\\{[^}]+\\}, runs in the cloud\\)\\. Track: \\$\\{[^}]+\\}\\$\\{[^}]+\\}`",
         "regex": "text:`\\$\\{[^}]+\\}Ultrareview 已为 \\$\\{[^}]+\\} 启动（\\$\\{[^}]+\\}，云端运行）。跟踪：\\$\\{[^}]+\\}\\$\\{[^}]+\\}`"
+      },
+      {
+        "id": "issue80_jetbrains_install_notice",
+        "rule": "translate",
+        "sourcePattern": " plugin from the JetBrains Marketplace:",
+        "pattern": "从 JetBrains Marketplace 安装 "
+      },
+      {
+        "id": "issue80_model_switch_notice",
+        "rule": "template",
+        "sourcePattern": " and saved as your default for new sessions",
+        "pattern": "已切换模型为 "
+      },
+      {
+        "id": "issue80_model_session_scope_notice",
+        "rule": "translate",
+        "sourcePattern": " for this session only. Selecting a model will undo this.",
+        "pattern": "（仅本次会话）。选择模型将取消此设置。"
+      },
+      {
+        "id": "issue80_code_review_command_description",
+        "rule": "template",
+        "sourcePattern": "Review the current diff for correctness bugs and reuse/simplification/efficiency cleanups at the given effort level",
+        "pattern": "审查当前 diff 的正确性问题"
+      },
+      {
+        "id": "issue80_simplify_command_description",
+        "rule": "translate",
+        "sourcePattern": "Review the current diff and apply the fixes \\u2014 equivalent to /code-review --fix.",
+        "pattern": "审查当前 diff 并应用修复，相当于 /code-review --fix。"
+      },
+      {
+        "id": "issue80_advisor_command_description",
+        "rule": "translate",
+        "sourcePattern": "Configure the Advisor Tool to consult a stronger model for guidance at key moments during a task",
+        "pattern": "配置 Advisor Tool，在任务关键节点咨询更强模型获取建议"
+      },
+      {
+        "id": "issue80_background_command_description",
+        "rule": "translate",
+        "sourcePattern": "Send this session to the background and free the terminal",
+        "pattern": "将本会话放到后台并释放终端"
+      },
+      {
+        "id": "issue80_clear_command_description",
+        "rule": "translate",
+        "sourcePattern": "Start a new session with empty context; previous session stays on disk (resumable with /resume)",
+        "pattern": "用空上下文开始新会话；之前的会话会保留在磁盘上（可用 /resume 恢复）"
+      },
+      {
+        "id": "issue80_exit_cli_description",
+        "rule": "translate",
+        "sourcePattern": "Exit the CLI",
+        "pattern": "退出 CLI"
+      },
+      {
+        "id": "issue80_exit_background_description",
+        "rule": "translate",
+        "sourcePattern": "Detach from this background session (it keeps running)",
+        "pattern": "从这个后台会话断开（会话会继续运行）"
+      },
+      {
+        "id": "issue80_fast_dynamic_description",
+        "rule": "template",
+        "sourceRegex": "Toggle fast mode \\(\\$\\{[^}]+\\}\\)",
+        "regex": "切换快速模式（\\$\\{[^}]+\\}）"
+      },
+      {
+        "id": "issue80_fast_dynamic_only_description",
+        "rule": "template",
+        "sourceRegex": "Toggle fast mode \\(\\$\\{[^}]+\\} only\\)",
+        "regex": "切换快速模式（仅 \\$\\{[^}]+\\}）"
+      },
+      {
+        "id": "issue80_fast_concrete_description",
+        "rule": "template",
+        "sourceRegex": "Toggle fast mode \\(Opus [^)]+\\)",
+        "regex": "切换快速模式（(?:仅 )?Opus [^)]+）"
+      },
+      {
+        "id": "issue80_feedback_command_description_v2",
+        "rule": "translate",
+        "sourcePattern": "Submit feedback, report a bug, or share your conversation",
+        "pattern": "提交反馈、报告问题或分享你的对话"
+      },
+      {
+        "id": "issue80_focus_command_description",
+        "rule": "translate",
+        "sourcePattern": "Toggle focus view (show only your prompt, a tool summary, and the final response)",
+        "pattern": "切换专注视图（只显示你的提示词、工具摘要和最终回复）"
+      },
+      {
+        "id": "issue80_goal_command_description",
+        "rule": "translate",
+        "sourcePattern": "Set a goal \\u2014 keep working until the condition is met",
+        "pattern": "设置目标：持续工作直到条件满足"
       }
     ],
     "displayAudit": {
       "commands": [
-        { "id": "top_help", "args": ["--help"] },
-        { "id": "agents_help", "args": ["agents", "--help"], "optional": true },
-        { "id": "auth_help", "args": ["auth", "--help"], "optional": true },
-        { "id": "auto_mode_help", "args": ["auto-mode", "--help"], "optional": true },
-        { "id": "doctor_help", "args": ["doctor", "--help"], "optional": true },
-        { "id": "install_help", "args": ["install", "--help"], "optional": true },
-        { "id": "mcp_help", "args": ["mcp", "--help"], "optional": true },
-        { "id": "plugin_help", "args": ["plugin", "--help"], "optional": true },
-        { "id": "setup_token_help", "args": ["setup-token", "--help"], "optional": true },
-        { "id": "update_help", "args": ["update", "--help"], "optional": true },
-        { "id": "ultrareview_help", "args": ["ultrareview", "--help"], "optional": true }
+        {
+          "id": "top_help",
+          "args": [
+            "--help"
+          ]
+        },
+        {
+          "id": "agents_help",
+          "args": [
+            "agents",
+            "--help"
+          ],
+          "optional": true
+        },
+        {
+          "id": "auth_help",
+          "args": [
+            "auth",
+            "--help"
+          ],
+          "optional": true
+        },
+        {
+          "id": "auto_mode_help",
+          "args": [
+            "auto-mode",
+            "--help"
+          ],
+          "optional": true
+        },
+        {
+          "id": "doctor_help",
+          "args": [
+            "doctor",
+            "--help"
+          ],
+          "optional": true
+        },
+        {
+          "id": "install_help",
+          "args": [
+            "install",
+            "--help"
+          ],
+          "optional": true
+        },
+        {
+          "id": "mcp_help",
+          "args": [
+            "mcp",
+            "--help"
+          ],
+          "optional": true
+        },
+        {
+          "id": "plugin_help",
+          "args": [
+            "plugin",
+            "--help"
+          ],
+          "optional": true
+        },
+        {
+          "id": "setup_token_help",
+          "args": [
+            "setup-token",
+            "--help"
+          ],
+          "optional": true
+        },
+        {
+          "id": "update_help",
+          "args": [
+            "update",
+            "--help"
+          ],
+          "optional": true
+        },
+        {
+          "id": "ultrareview_help",
+          "args": [
+            "ultrareview",
+            "--help"
+          ],
+          "optional": true
+        }
       ],
       "blockedPhrases": [
-        { "id": "usage_heading", "pattern": "Usage:" },
-        { "id": "arguments_heading", "pattern": "Arguments:" },
-        { "id": "options_heading", "pattern": "Options:" },
-        { "id": "commands_heading", "pattern": "Commands:" },
-        { "id": "your_prompt", "pattern": "Your prompt" },
-        { "id": "display_help_for_command", "pattern": "Display help for command" },
-        { "id": "interactive_session_description", "pattern": "starts an interactive session by default" },
-        { "id": "install_target_hint", "pattern": "Use [target] to specify version" }
+        {
+          "id": "usage_heading",
+          "pattern": "Usage:"
+        },
+        {
+          "id": "arguments_heading",
+          "pattern": "Arguments:"
+        },
+        {
+          "id": "options_heading",
+          "pattern": "Options:"
+        },
+        {
+          "id": "commands_heading",
+          "pattern": "Commands:"
+        },
+        {
+          "id": "your_prompt",
+          "pattern": "Your prompt"
+        },
+        {
+          "id": "display_help_for_command",
+          "pattern": "Display help for command"
+        },
+        {
+          "id": "interactive_session_description",
+          "pattern": "starts an interactive session by default"
+        },
+        {
+          "id": "install_target_hint",
+          "pattern": "Use [target] to specify version"
+        }
       ],
       "mustPreserve": [
-        { "id": "top_model_flag", "command": "top_help", "pattern": "--model" },
-        { "id": "top_print_flag", "command": "top_help", "pattern": "--print" },
-        { "id": "top_json_schema_term", "command": "top_help", "pattern": "JSON Schema" },
-        { "id": "top_anthropic_api_key", "command": "top_help", "pattern": "ANTHROPIC_API_KEY" },
-        { "id": "top_mcp_term", "command": "top_help", "pattern": "MCP" },
-        { "id": "top_stream_json_value", "command": "top_help", "pattern": "stream-json" }
+        {
+          "id": "top_model_flag",
+          "command": "top_help",
+          "pattern": "--model"
+        },
+        {
+          "id": "top_print_flag",
+          "command": "top_help",
+          "pattern": "--print"
+        },
+        {
+          "id": "top_json_schema_term",
+          "command": "top_help",
+          "regex": "JSON\\s+Schema"
+        },
+        {
+          "id": "top_anthropic_api_key",
+          "command": "top_help",
+          "pattern": "ANTHROPIC_API_KEY"
+        },
+        {
+          "id": "top_mcp_term",
+          "command": "top_help",
+          "pattern": "MCP"
+        },
+        {
+          "id": "top_stream_json_value",
+          "command": "top_help",
+          "pattern": "stream-json"
+        }
       ],
       "allowedEnglishTerms": [
         "Claude Code",
@@ -117,11 +454,18 @@
         "npm",
         "stable",
         "latest",
-        "stream-json"
+        "stream-json",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
       ],
       "allowedEnglishLineRegexes": [
         "^\\s*[a-z][a-z0-9-]*(\\|[a-z][a-z0-9-]*)?(\\s+\\[[^\\]]+\\])?$",
-        "^\\s*claude\\s+.*$"
+        "^\\s*claude\\s+.*$",
+        "^\\s*--file\\s+file_[a-z]+:[A-Za-z0-9_.-]+(?:\\s+file_[a-z]+:[A-Za-z0-9_.-]+)?[）)]?$",
+        "^\\s*file_[a-z]+:[A-Za-z0-9_.-]+[）)]?$"
       ],
       "minEnglishWords": 2,
       "maxUntranslatedLines": 0
@@ -132,7 +476,14 @@
       "stable": {
         "floor": "2.1.92",
         "ceiling": "2.1.112",
-        "representatives": ["2.1.92", "2.1.97", "2.1.104", "2.1.107", "2.1.110", "2.1.112"],
+        "representatives": [
+          "2.1.92",
+          "2.1.97",
+          "2.1.104",
+          "2.1.107",
+          "2.1.110",
+          "2.1.112"
+        ],
         "notes": "PATH 优先 launcher + session-start 二层兜底，适用于旧 cli.js npm 包形态；2.1.113+ native binary wrapper 暂不支持旧 CLI Patch。"
       }
     },
@@ -141,8 +492,14 @@
         "platform": "darwin-arm64",
         "floor": "2.1.110",
         "ceiling": "2.1.112",
-        "representatives": ["2.1.110", "2.1.111", "2.1.112"],
-        "requires": ["node-lief"],
+        "representatives": [
+          "2.1.110",
+          "2.1.111",
+          "2.1.112"
+        ],
+        "requires": [
+          "node-lief"
+        ],
         "verification": "2.1.110 PASS(native 1245) · 2.1.111 PASS(native 1241) · 2.1.112 PASS(native 1241)",
         "notes": "官方安装器指定旧版本仍走 native binary；macOS arm64 已离线验证 extract/patch/repack/--version，插件可用 native patch experimental 处理，需要 node-lief；稳定使用仍建议 npm pinned。"
       }
@@ -151,8 +508,20 @@
       "platform": "darwin-arm64",
       "packageName": "@anthropic-ai/claude-code-darwin-arm64",
       "floor": "2.1.113",
-      "ceiling": "2.1.126",
-      "excluded": ["2.1.115"],
+      "ceiling": "2.1.156",
+      "excluded": [
+        "2.1.115",
+        "2.1.125",
+        "2.1.127",
+        "2.1.130",
+        "2.1.134",
+        "2.1.135",
+        "2.1.147",
+        "2.1.149",
+        "2.1.151",
+        "2.1.154",
+        "2.1.155"
+      ],
       "representatives": [
         "2.1.113",
         "2.1.114",
@@ -165,24 +534,38 @@
         "2.1.122",
         "2.1.123",
         "2.1.124",
-        "2.1.126"
+        "2.1.126",
+        "2.1.128",
+        "2.1.129",
+        "2.1.131",
+        "2.1.132",
+        "2.1.133",
+        "2.1.136",
+        "2.1.137",
+        "2.1.138",
+        "2.1.139",
+        "2.1.140",
+        "2.1.141",
+        "2.1.142",
+        "2.1.143",
+        "2.1.144",
+        "2.1.145",
+        "2.1.146",
+        "2.1.148",
+        "2.1.150",
+        "2.1.152",
+        "2.1.153",
+        "2.1.156"
       ],
-      "verification": "2.1.113 PASS(native 1358, display 11/11) · 2.1.114 PASS(native 1358, display 11/11) · 2.1.116 PASS(native 1351, display 11/11) · 2.1.117 PASS(native 1334, display 11/11) · 2.1.118 PASS(native 1323, display 11/11) · 2.1.119 PASS(native 1328, display 11/11) · 2.1.120 PASS(native 1331, display 11/11) · 2.1.121 PASS(native 1334, display 11/11) · 2.1.122 PASS(native 1334, display 11/11) · 2.1.123 PASS(native 1334, display 11/11) · 2.1.124 PASS(native extract/version) · 2.1.126 PASS(native extract/version)",
-      "requires": ["node-lief"],
-      "notes": "macOS arm64 native binary experimental；需要 node-lief；已验证 2.1.113、2.1.114、2.1.116 - 2.1.126 的 extract / patch / repack / --version；2.1.115 官方未发布；不代表未来 latest 自动稳定。"
+      "verification": "2.1.113 PASS(native 1358, display 11/11) · 2.1.114 PASS(native 1358, display 11/11) · 2.1.116 PASS(native 1351, display 11/11) · 2.1.117 PASS(native 1334, display 11/11) · 2.1.118 PASS(native 1323, display 11/11) · 2.1.119 PASS(native 1328, display 11/11) · 2.1.120 PASS(native 1331, display 11/11) · 2.1.121 PASS(native 1334, display 11/11) · 2.1.122 PASS(native 1334, display 11/11) · 2.1.123 PASS(native 1334, display 11/11) · 2.1.124 PASS(native 1331, display 11/11) · 2.1.126 PASS(native 1331, display 11/11) · 2.1.128 PASS(native 1331, display 11/11) · 2.1.129 PASS(native 1333, display 11/11) · 2.1.131 PASS(native 1333, display 11/11) · 2.1.132 PASS(native 1323, display 11/11) · 2.1.133 PASS(native 1323, display 11/11) · 2.1.136 PASS(native 1322, display 11/11) · 2.1.137 PASS(native 1322, display 11/11) · 2.1.138 PASS(native 1322, display 11/11) · 2.1.139 PASS(native 1324, display 11/11) · 2.1.140 PASS(native 1324, display 11/11) · 2.1.141 PASS(native 1324, display 11/11) · 2.1.142 PASS(native 1320, display 11/11) · 2.1.143 PASS(native 1326, display 11/11) · 2.1.144 PASS(native 1324, display 11/11) · 2.1.145 PASS(native 1324, display 11/11) · 2.1.146 PASS(native 1335, display 11/11) · 2.1.148 PASS(native 1333, display 11/11) · 2.1.150 PASS(native 1333, display 11/11) · 2.1.152 PASS(native 1343, display 11/11) · 2.1.153 PASS(native 1343, display 11/11) · 2.1.156 PASS(native 1385, display 11/11)",
+      "requires": [
+        "node-lief"
+      ],
+      "notes": "macOS arm64 native binary experimental；需要 node-lief；已验证 2.1.113 - 2.1.114、2.1.116 - 2.1.124、2.1.126、2.1.128 - 2.1.129、2.1.131 - 2.1.133、2.1.136 - 2.1.146、2.1.148、2.1.150、2.1.152 - 2.1.153、2.1.156 的 extract / patch / repack / --version 和 11 个稳定显示面审计；2.1.115、2.1.125、2.1.127、2.1.130、2.1.134、2.1.135、2.1.147、2.1.149、2.1.151、2.1.154、2.1.155 未发布或未纳入支持；不代表未来 latest 自动稳定。"
     },
     "linuxOfficialInstaller": {
       "unsupported": true,
       "notes": "当前不支持 Linux 官方安装器；请改用 npm 路径。"
-    },
-    "linuxNativeExperimental": {
-      "platform": "linux",
-      "floor": "2.1.126",
-      "ceiling": "2.1.126",
-      "representatives": ["2.1.126"],
-      "requires": ["node-lief"],
-      "verification": "2.1.126 PASS(ELF extract/repack/version)",
-      "notes": "Linux native binary experimental；需要 node-lief；已验证 2.1.126 的 extract / patch / repack / --version；使用直接文件 I/O 写入 .bun section（LIEF 不支持 ELF section 写入）。"
     },
     "windowsNpmPowerShell": {
       "stable": {
@@ -195,6 +578,62 @@
     "windowsNativeExe": {
       "unsupported": true,
       "notes": "Windows native .exe（官方安装器或 2.1.113+ npm 原生 wrapper）会明确跳过 CLI Patch，仅启用 Layer 1~3；硬编码 UI 文字不会被完整翻译。"
+    },
+    "windowsNativeExperimental": {
+      "floor": "2.1.113",
+      "ceiling": "2.1.153",
+      "platform": "win32-x64",
+      "packageName": "@anthropic-ai/claude-code-win32-x64",
+      "representatives": [
+        "2.1.113",
+        "2.1.114",
+        "2.1.116",
+        "2.1.117",
+        "2.1.118",
+        "2.1.119",
+        "2.1.120",
+        "2.1.121",
+        "2.1.122",
+        "2.1.123",
+        "2.1.124",
+        "2.1.126",
+        "2.1.128",
+        "2.1.129",
+        "2.1.131",
+        "2.1.132",
+        "2.1.133",
+        "2.1.136",
+        "2.1.137",
+        "2.1.138",
+        "2.1.139",
+        "2.1.140",
+        "2.1.141",
+        "2.1.142",
+        "2.1.143",
+        "2.1.144",
+        "2.1.145",
+        "2.1.146",
+        "2.1.148",
+        "2.1.150",
+        "2.1.152",
+        "2.1.153"
+      ],
+      "excluded": [
+        "2.1.115",
+        "2.1.125",
+        "2.1.127",
+        "2.1.130",
+        "2.1.134",
+        "2.1.135",
+        "2.1.147",
+        "2.1.149",
+        "2.1.151"
+      ],
+      "verification": "Windows native verification runs on pinned Windows runners with PE extract / patch / repack / --version / display audit",
+      "requires": [
+        "node-lief"
+      ],
+      "notes": "Windows x64 native binary experimental；需要 node-lief；仅代表列出的已验证版本，不代表 future latest 自动稳定。"
     }
   }
 }
