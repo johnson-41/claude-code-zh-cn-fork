@@ -20,7 +20,7 @@
 
 ### Windows（推荐）
 
-双击运行 `install-gui.ps1`，打开可视化安装器：
+双击 `install.bat` 打开可视化安装器：
 
 ```
 ┌─────────────────────────────────────────┐
@@ -38,7 +38,7 @@
 ```powershell
 git clone https://github.com/KongBai1145/claude-code-zh-cn.git
 cd claude-code-zh-cn
-powershell -NoProfile -ExecutionPolicy Bypass -File install.ps1
+.\install.ps1
 ```
 
 ### macOS / Linux
