@@ -202,7 +202,7 @@
 
 ### 验证
 
-- `bash -n install.sh uninstall.sh plugin/bin/claude-launcher plugin/hooks/session-start plugin/profile/claude-code-zh-cn-fork.sh`
+- `bash -n install.sh uninstall.sh plugin/bin/claude-launcher plugin/hooks/session-start plugin/profile/claude-code-zh-cn.sh`
 - `node --check patch-cli.js plugin/patch-cli.js scripts/check-translation-sentinels.js scripts/verify-upstream-compat.js scripts/generate-support-matrix.js`
 - `node --test tests/*.test.js`
 - `node scripts/verify-upstream-compat.js`

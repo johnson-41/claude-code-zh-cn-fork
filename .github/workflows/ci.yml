@@ -25,7 +25,7 @@ jobs:
           bash -n plugin/bin/claude-launcher
           bash -n plugin/hooks/session-start
           bash -n plugin/hooks/notification
-          bash -n plugin/profile/claude-code-zh-cn-fork.sh
+          bash -n plugin/profile/claude-code-zh-cn.sh
 
       - name: JavaScript syntax check
         run: |
