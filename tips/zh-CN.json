@@ -110,7 +110,7 @@
     },
     {
       "id": "custom-commands",
-      "text": "在项目的 .claude/skills/ 或全局的 ~/.claude/skills/ 添加 .md 文件来创建自定义技能"
+      "text": "在项目的 .claude/skills/ 或全局的 ~/.claude/skills/ 添加 .md 文件来创建自定义 Skill"
     },
     {
       "id": "shift-tab",

@@ -16,6 +16,8 @@ if ($env:CLAUDE_PLUGIN_ROOT) { $PluginDst = $env:CLAUDE_PLUGIN_ROOT } else { $Pl
 if ($env:ZH_CN_LAUNCHER_BIN_DIR) { $LauncherBinDir = $env:ZH_CN_LAUNCHER_BIN_DIR } else { $LauncherBinDir = "$env:USERPROFILE\.claude\bin" }
 $BackupDir = "$env:USERPROFILE\.claude\zh-cn-backup"
 $BackupZip = "$env:USERPROFILE\claude-code-zh-cn-backup.zip"
+$TmpDir = "$env:TEMP\claude-zh-cn"
+New-Item -ItemType Directory -Force -Path $TmpDir | Out-Null
 
 $ManifestFile = Join-Path $ScriptDir "plugin\manifest.json"
 $PluginVersion = "unknown"
@@ -240,15 +242,6 @@ function Read-CliVersion {
     return ""
 }
 
-function Run-Js {
-    param([string]$Code, [string[]]$JsArgs)
-    $tmp = Join-Path $env:TEMP "cczh-gui-$PID-$((Get-Random).ToString('x')).js"
-    $Code | Out-File -FilePath $tmp -Encoding ascii -NoNewline
-    try {
-        if ($JsArgs) { node $tmp @JsArgs 2>$null } else { node $tmp 2>$null }
-    } finally { Remove-Item $tmp -Force -ErrorAction SilentlyContinue }
-}
-
 # ======== 核心: 安装 ========
 function Do-Install {
     Set-Buttons $false
@@ -323,9 +316,9 @@ function Do-Install {
         # 构建 overlay
         $overlayJs = @'
 var fs=require("fs");
-var base=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));
-var verbs=JSON.parse(fs.readFileSync(process.argv[2],"utf8"));
-var tips=JSON.parse(fs.readFileSync(process.argv[3],"utf8"));
+var base=JSON.parse(fs.readFileSync(process.argv[2],"utf8"));
+var verbs=JSON.parse(fs.readFileSync(process.argv[3],"utf8"));
+var tips=JSON.parse(fs.readFileSync(process.argv[4],"utf8"));
 base.spinnerVerbs=verbs;
 base.spinnerTipsOverride={excludeDefault:true,tips:tips.tips.map(function(t){return t.text})};
 process.stdout.write(JSON.stringify(base));
@@ -334,7 +327,7 @@ process.stdout.write(JSON.stringify(base));
 
         $mergeJs = @'
 var fs=require("fs");
-var sf=process.argv[1],ov=process.argv[2];
+var sf=process.argv[2],ov=process.argv[3];
 var s=JSON.parse(fs.readFileSync(sf,"utf8").replace(/^﻿/,""));
 var o=JSON.parse(fs.readFileSync(ov,"utf8"));
 function dm(a,b){var r={};for(var k in a)if(a.hasOwnProperty(k))r[k]=a[k];
@@ -401,7 +394,7 @@ process.stdout.write("ok");
             # Marker
             $revJs = @'
 var c=require("crypto"),f=require("fs"),p=require("path");
-var r=process.argv[1],h=c.createHash("sha256");
+var r=process.argv[2],h=c.createHash("sha256");
 ["manifest.json","patch-cli.sh","patch-cli.js","cli-translations.json","bun-binary-io.js","compute-patch-revision.sh","hooks/session-start","hooks/notification","hooks/auto-repatch.sh","hooks/auto-update.sh","lib/common.sh"].forEach(function(n){
 var t=p.join(r,n);if(!f.existsSync(t))return;h.update(n);h.update("\0");h.update(f.readFileSync(t));h.update("\0")});
 process.stdout.write(h.digest("hex").slice(0,16));
@@ -411,7 +404,126 @@ process.stdout.write(h.digest("hex").slice(0,16));
                 "${ver}|${rev}" | Out-File -FilePath "$PluginDst\.patched-version" -Encoding ascii -NoNewline
             }
         } elseif ($info -and $info.StartsWith("native-bun:")) {
-            Write-Log "  原生二进制安装，Windows 暂不支持 patch"
+            $nativeBin = $info.Substring(11)
+            Write-Log "  原生二进制: $nativeBin"
+            $helperFile = Join-Path $PluginDst "bun-binary-io.js"
+            $depStatus = & node $helperFile check-deps 2>$null
+            if ($depStatus -ne "ok") {
+                Write-Log "  缺少 node-lief 依赖，跳过 patch"
+                Write-Log "  请先执行: npm install -g node-lief"
+            } else {
+                $ver = & node $helperFile version $nativeBin 2>$null
+                $ver = if ($ver) { $ver.Trim() } else { "" }
+                Write-Log "  版本: $ver"
+                $ProgressBar.Value = 65
+
+                $supportFile = Join-Path $PluginDst "support-window.json"
+                $supported = $false
+                if (Test-Path $supportFile) {
+                    $checkJs = @'
+var fs=require("fs");
+var data=JSON.parse(fs.readFileSync(process.argv[2],"utf8"));
+var v=String(process.argv[3]||"");
+var versions=[];
+["legacyNpmStable","macosNativeOfficialInstallerExperimental","macosNativeExperimental","windowsNativeExperimental","linuxNativeExperimental"].forEach(function(k){var e=data[k];if(!e)return;(Array.isArray(e.versions)?e.versions:[]).forEach(function(x){versions.push(String(x))})});
+process.stdout.write(versions.indexOf(v)>=0?"1":"0");
+'@
+                    $r = Run-Js $checkJs @($supportFile, $ver)
+                    $supported = ($r -eq "1")
+                }
+                if (-not $ver) {
+                    Write-Log "  无法读取内嵌版本，跳过 patch"
+                } elseif (-not $supported) {
+                    Write-Log "  版本 $ver 不在 support-window 支持列表，跳过 patch"
+                    Write-Log "  可手动编辑 plugin/support-window.json 加入该版本"
+                } else {
+                    $bak = "$nativeBin.zh-cn-backup"
+                    $bakVer = if (Test-Path $bak) { (& node $helperFile version $bak 2>$null).Trim() } else { "" }
+                    if (-not (Test-Path $bak)) {
+                        Copy-Item $nativeBin $bak -Force
+                        Write-Log "  已备份原始 exe"
+                    } elseif ($bakVer -eq $ver) {
+                        Copy-Item $bak $nativeBin -Force
+                        Write-Log "  已从备份恢复原始 exe (版本一致: $ver)"
+                    } else {
+                        Copy-Item $nativeBin $bak -Force
+                        Write-Log "  版本变化，重新备份 exe ($bakVer -> $ver)"
+                    }
+                    $ProgressBar.Value = 75
+
+                    $win32Bin = $nativeBin -replace '\\(bin\\claude\.exe)$', '\node_modules\@anthropic-ai\claude-code-win32-x64\claude.exe'
+                    if ((Test-Path $win32Bin) -and ($win32Bin -ne $nativeBin)) {
+                        $win32Bak = "$win32Bin.zh-cn-backup"
+                        $win32BakVer = if (Test-Path $win32Bak) { (& node $helperFile version $win32Bak 2>$null).Trim() } else { "" }
+                        if (-not (Test-Path $win32Bak)) {
+                            Copy-Item $win32Bin $win32Bak -Force
+                            Write-Log "  已备份 win32-x64 副本"
+                        } elseif ($win32BakVer -eq $ver) {
+                            Copy-Item $win32Bak $win32Bin -Force
+                            Write-Log "  已从备份恢复 win32-x64 副本"
+                        } else {
+                            Copy-Item $win32Bin $win32Bak -Force
+                            Write-Log "  版本变化，重新备份 win32-x64 副本"
+                        }
+                    }
+                    $ProgressBar.Value = 80
+
+                    $tmpJs = Join-Path $env:TEMP "cczh-gui-extract-$PID.js"
+                    $extOk = & node $helperFile extract $nativeBin $tmpJs 2>$null
+                    if ($extOk -ne "ok") {
+                        Write-Log "  extract 失败"
+                        if (Test-Path $bak) { Copy-Item $bak $nativeBin -Force }
+                    } else {
+                        $patchJs = Join-Path $PluginDst "patch-cli.js"
+                        $trans = Join-Path $PluginDst "cli-translations.json"
+                        $count = & node $patchJs $tmpJs $trans 2>$null
+                        $repOk = & node $helperFile repack $nativeBin $tmpJs 2>$null
+                        Remove-Item $tmpJs -Force -ErrorAction SilentlyContinue
+                        if ($repOk -ne "ok") {
+                            Write-Log "  repack 失败，从备份恢复"
+                            Copy-Item $bak $nativeBin -Force
+                        } else {
+                            Write-Log "  已 patch ($count 处硬编码文字)"
+                        }
+                    }
+                    $ProgressBar.Value = 88
+
+                    if ((Test-Path $win32Bin) -and ($win32Bin -ne $nativeBin) -and (Test-Path "$win32Bin.zh-cn-backup")) {
+                        $tmpJs2 = Join-Path $env:TEMP "cczh-gui-extract2-$PID.js"
+                        $extOk2 = & node $helperFile extract $win32Bin $tmpJs2 2>$null
+                        if ($extOk2 -eq "ok") {
+                            $patchJs = Join-Path $PluginDst "patch-cli.js"
+                            $trans = Join-Path $PluginDst "cli-translations.json"
+                            $count2 = & node $patchJs $tmpJs2 $trans 2>$null
+                            $repOk2 = & node $helperFile repack $win32Bin $tmpJs2 2>$null
+                            Remove-Item $tmpJs2 -Force -ErrorAction SilentlyContinue
+                            if ($repOk2 -eq "ok") {
+                                Write-Log "  win32-x64 副本已 patch ($count2 处)"
+                            } else {
+                                Write-Log "  win32-x64 副本 repack 失败，从备份恢复"
+                                Copy-Item "$win32Bin.zh-cn-backup" $win32Bin -Force
+                            }
+                        } else {
+                            Remove-Item $tmpJs2 -Force -ErrorAction SilentlyContinue
+                        }
+                    }
+                    $ProgressBar.Value = 92
+
+                    $hash = & node $helperFile hash $nativeBin 2>$null
+                    $hash = if ($hash) { $hash.Trim() } else { "unknown" }
+                    $revJs = @'
+var c=require("crypto"),f=require("fs"),p=require("path");
+var r=process.argv[2],h=c.createHash("sha256");
+["manifest.json","patch-cli.sh","patch-cli.js","cli-translations.json","bun-binary-io.js","compute-patch-revision.sh","hooks/session-start","hooks/notification","hooks/auto-repatch.sh","hooks/auto-update.sh","lib/common.sh"].forEach(function(n){
+var t=p.join(r,n);if(!f.existsSync(t))return;h.update(n);h.update("\0");h.update(fs.readFileSync(t));h.update("\0")});
+process.stdout.write(h.digest("hex").slice(0,16));
+'@
+                    $rev = Run-Js $revJs $PluginDst
+                    $markerLine = "native|${ver}|${hash}"
+                    if ($rev) { $markerLine = "${markerLine}|${rev}" }
+                    $markerLine | Out-File -FilePath "$PluginDst\.patched-version" -Encoding ascii -NoNewline
+                }
+            }
         } else {
             Write-Log "  未检测到 Claude Code 或不支持 patch"
         }
@@ -508,9 +620,9 @@ function Do-Update {
         Write-Log "更新 settings.json..."
         $overlayJs = @'
 var fs=require("fs");
-var base=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));
-var verbs=JSON.parse(fs.readFileSync(process.argv[2],"utf8"));
-var tips=JSON.parse(fs.readFileSync(process.argv[3],"utf8"));
+var base=JSON.parse(fs.readFileSync(process.argv[2],"utf8"));
+var verbs=JSON.parse(fs.readFileSync(process.argv[3],"utf8"));
+var tips=JSON.parse(fs.readFileSync(process.argv[4],"utf8"));
 base.spinnerVerbs=verbs;
 base.spinnerTipsOverride={excludeDefault:true,tips:tips.tips.map(function(t){return t.text})};
 process.stdout.write(JSON.stringify(base));
@@ -519,7 +631,7 @@ process.stdout.write(JSON.stringify(base));
 
         $mergeJs = @'
 var fs=require("fs");
-var sf=process.argv[1],ov=process.argv[2];
+var sf=process.argv[2],ov=process.argv[3];
 var s=JSON.parse(fs.readFileSync(sf,"utf8").replace(/^﻿/,""));
 var o=JSON.parse(fs.readFileSync(ov,"utf8"));
 function dm(a,b){var r={};for(var k in a)if(a.hasOwnProperty(k))r[k]=a[k];
@@ -547,7 +659,7 @@ process.stdout.write("ok");
         # 更新 marker
         $revJs = @'
 var c=require("crypto"),f=require("fs"),p=require("path");
-var r=process.argv[1],h=c.createHash("sha256");
+var r=process.argv[2],h=c.createHash("sha256");
 ["manifest.json","patch-cli.sh","patch-cli.js","cli-translations.json","bun-binary-io.js","compute-patch-revision.sh","hooks/session-start","hooks/notification","hooks/auto-repatch.sh","hooks/auto-update.sh","lib/common.sh"].forEach(function(n){
 var t=p.join(r,n);if(!f.existsSync(t))return;h.update(n);h.update("\0");h.update(f.readFileSync(t));h.update("\0")});
 process.stdout.write(h.digest("hex").slice(0,16));
@@ -604,7 +716,7 @@ function Do-Uninstall {
         if (Test-Path $SettingsFile) {
             $delJs = @'
 var fs=require("fs");
-var f=process.argv[1],s=JSON.parse(fs.readFileSync(f,"utf8"));
+var f=process.argv[2],s=JSON.parse(fs.readFileSync(f,"utf8"));
 ["language","spinnerTipsEnabled","spinnerTipsOverride","spinnerVerbs"].forEach(function(k){delete s[k]});
 fs.writeFileSync(f,JSON.stringify(s,null,2)+"\n");
 '@

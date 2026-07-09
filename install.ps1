@@ -613,7 +613,7 @@ function do-uninstall {
 
     # 清理 settings
     if (Test-Path $SettingsFile) {
-        $delJs = "var fs=require('fs');var f=process.argv[1],s=JSON.parse(fs.readFileSync(f,'utf8'));['language','spinnerTipsEnabled','spinnerTipsOverride','spinnerVerbs'].forEach(function(k){delete s[k]});fs.writeFileSync(f,JSON.stringify(s,null,2)+'\n');"
+        $delJs = "var fs=require('fs');var f=process.argv[2],s=JSON.parse(fs.readFileSync(f,'utf8'));['language','spinnerTipsEnabled','spinnerTipsOverride','spinnerVerbs'].forEach(function(k){delete s[k]});fs.writeFileSync(f,JSON.stringify(s,null,2)+'\n');"
         run-js $delJs @($SettingsFile)
         Write-Host "  已清理 settings.json"
     }

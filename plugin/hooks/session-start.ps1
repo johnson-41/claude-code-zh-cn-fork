@@ -107,6 +107,94 @@ process.exit(1);
     return ($LASTEXITCODE -eq 0)
 }
 
+function Read-NativeVersion($BinaryPath) {
+    $helperFile = Join-Path $PluginRoot "bun-binary-io.js"
+    if (-not (Test-Path $helperFile)) { return "" }
+    $v = node $helperFile version "$BinaryPath" 2>$null
+    if ($v) { return ($v.Trim()) }
+    return ""
+}
+
+function Get-NativeHash($BinaryPath) {
+    $helperFile = Join-Path $PluginRoot "bun-binary-io.js"
+    if (-not (Test-Path $helperFile)) { return "unknown" }
+    $h = node $helperFile hash "$BinaryPath" 2>$null
+    if ($h) { return ($h.Trim()) }
+    return "unknown"
+}
+
+function Test-NativeSupportedVersion($Version) {
+    $supportFile = Join-Path $PluginRoot "support-window.json"
+    if (-not (Test-Path $supportFile)) { return $false }
+    if (-not $Version) { return $false }
+    $code = @'
+const fs=require("fs");
+const data=JSON.parse(fs.readFileSync(process.argv[2],"utf8"));
+const v=String(process.argv[3]||"");
+const versions=[];
+["legacyNpmStable","macosNativeOfficialInstallerExperimental","macosNativeExperimental","windowsNativeExperimental","linuxNativeExperimental"].forEach(function(k){var e=data[k];if(!e)return;(Array.isArray(e.versions)?e.versions:[]).forEach(function(x){versions.push(String(x))})});
+process.stdout.write(versions.indexOf(v)>=0?"1":"0");
+'@
+    $r = Invoke-JsScript -Code $code -Args @($supportFile, $Version)
+    return ($r -eq "1")
+}
+
+function Test-NativeResidue($BinaryPath) {
+    $helperFile = Join-Path $PluginRoot "bun-binary-io.js"
+    if (-not (Test-Path $helperFile)) { return $true }
+    $probeFile = Join-Path $TmpDir "native-probe-$PID.js"
+    $extracted = node $helperFile extract "$BinaryPath" "$probeFile" 2>$null
+    if (-not $extracted) { return $true }
+    if (-not (Test-Path $probeFile)) { return $true }
+    try {
+        $hasResidue = Select-String -Path $probeFile -Pattern "Quick safety check" -Quiet
+        return [bool]$hasResidue
+    } finally {
+        Remove-Item $probeFile -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Repair-NativeBinary($BinaryPath) {
+    $helperFile = Join-Path $PluginRoot "bun-binary-io.js"
+    if (-not (Test-Path $helperFile)) { return 0 }
+    $depStatus = node $helperFile check-deps 2>$null
+    if ($depStatus -ne "ok") { return 0 }
+
+    $backupPath = "${BinaryPath}.zh-cn-backup"
+    $currentVersion = Read-NativeVersion $BinaryPath
+    $backupVersion = if (Test-Path $backupPath) { Read-NativeVersion $backupPath } else { "" }
+
+    if ((Test-Path $backupPath) -and $currentVersion -and ($currentVersion -eq $backupVersion)) {
+        Copy-Item $backupPath $BinaryPath -Force
+    } else {
+        Copy-Item $BinaryPath $backupPath -Force
+    }
+
+    $tmpJs = Join-Path $TmpDir "native-extract-$PID.js"
+    $extractOk = node $helperFile extract "$BinaryPath" "$tmpJs" 2>$null
+    if ($extractOk -ne "ok") {
+        if (Test-Path $backupPath) { Copy-Item $backupPath $BinaryPath -Force }
+        Remove-Item $tmpJs -Force -ErrorAction SilentlyContinue
+        return 0
+    }
+
+    $patchCount = node (Join-Path $PluginRoot "patch-cli.js") "$tmpJs" (Join-Path $PluginRoot "cli-translations.json") 2>$null
+    if (-not $patchCount) { $patchCount = "0" }
+    $patchCountInt = 0
+    [int]::TryParse($patchCount, [ref]$patchCountInt) | Out-Null
+
+    if ($patchCountInt -gt 0) {
+        $repackOk = node $helperFile repack "$BinaryPath" "$tmpJs" 2>$null
+        if ($repackOk -ne "ok") {
+            if (Test-Path $backupPath) { Copy-Item $backupPath $BinaryPath -Force }
+            Remove-Item $tmpJs -Force -ErrorAction SilentlyContinue
+            return 0
+        }
+    }
+    Remove-Item $tmpJs -Force -ErrorAction SilentlyContinue
+    return $patchCountInt
+}
+
 function Get-InstallInfo($ClaudeBin) {
     if (-not $ClaudeBin) { return $null }
     $helperFile = Join-Path $PluginRoot "bun-binary-io.js"
@@ -249,6 +337,29 @@ if ($InstallInfo) {
                 if ($patchCount -and [int]$patchCount -gt 0) {
                     $AutoPatchMsg = "（已自动 patch ${patchCount} 处硬编码文字）"
                 }
+            }
+        }
+    } elseif ($Kind -eq "native-bun" -and $Target -and (Test-Path $Target)) {
+        $CurrentVersion = Read-NativeVersion $Target
+        $CurrentHash = Get-NativeHash $Target
+        $PatchRevision = Get-PatchRevision $PluginRoot
+        $CurrentMarker = "native|${CurrentVersion}|${CurrentHash}"
+        if ($PatchRevision) { $CurrentMarker = "${CurrentMarker}|${PatchRevision}" }
+        $PatchedVersion = $null
+        if (Test-Path $MarkerFile) {
+            $PatchedVersion = [System.IO.File]::ReadAllText($MarkerFile, [System.Text.Encoding]::UTF8) -replace '\r?\n', ''
+        }
+        $hasResidue = Test-NativeResidue $Target
+        if ($CurrentMarker -ne $PatchedVersion -or $hasResidue) {
+            if ($CurrentVersion -and (Test-NativeSupportedVersion $CurrentVersion)) {
+                $patchCount = Repair-NativeBinary $Target
+                if ($patchCount -gt 0) {
+                    $AutoPatchMsg = "（已自动 patch 原生二进制 ${patchCount} 处硬编码文字 — Claude Code ${CurrentVersion}）"
+                }
+                $FinalHash = Get-NativeHash $Target
+                $FinalMarker = "native|${CurrentVersion}|${FinalHash}"
+                if ($PatchRevision) { $FinalMarker = "${FinalMarker}|${PatchRevision}" }
+                $FinalMarker | Out-File -FilePath $MarkerFile -Encoding ascii -NoNewline
             }
         }
     }
