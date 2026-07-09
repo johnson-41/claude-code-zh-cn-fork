@@ -190,7 +190,7 @@ macOS、Linux、Windows（PowerShell 5.1+ / WSL）。需要 Node.js。
 
 ## 致谢
 
-- 原项目：[taekchef/claude-code-zh-cn](https://github.com/taekchef/claude-code-zh-cn)
+- 原项目 fork 自 [taekchef/claude-code-zh-cn](https://github.com/taekchef/claude-code-zh-cn)。**自 v2.5.0 起由本仓库独立维护**——重点支持 Claude Code 2.1.92+ 全版本，并扩展到 native experimental 通道（macOS / Windows 二进制包）
 - UI 字符串提取自 [Claude Code](https://github.com/anthropics/claude-code)
 
 ---
