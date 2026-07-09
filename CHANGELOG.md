@@ -6,6 +6,23 @@
 - **次版本号**：新增功能或显著改进（比如新增 patch、新增翻译）
 - **修订号**：Bug 修复和小调整（比如修正一条翻译）
 
+## [2.6.0] - 2026-07-09
+
+### 新增
+
+- **native experimental 支持窗口扩到 Claude Code 2.1.202 - 2.1.205**：`scripts/upstream-compat.config.json` 中 `windowsNativeExperimental.ceiling` 从 2.1.201 升至 2.1.205、`macosNativeExperimental.ceiling` 从 2.1.156 升至 2.1.205；两段 `representatives` 同步追加 2.1.202 / 2.1.203 / 2.1.204 / 2.1.205 四个版本
+- 用户装 Claude Code 2.1.202 及以上后，L1（设置注入）/ L2（Hook）/ L3（输出风格）仍正常工作；L4（CLI 硬编码英文翻译）会按 `support-boundary-guard` 规则跑通
+
+### 改进
+
+- verification 字段用 `PENDING VERIFICATION` 显式标记未完成真机验证的版本，方便后续 grep 回填
+- 2.1.157 - 2.1.201 段（Windows 已含 2.1.201，macOS 未含）本次按用户"仅升级最近 2-3 个小版本"决策**保持原状**，未纳入
+
+### 已知限制
+
+- **2.1.202 - 2.1.205 未在真机完成 extract / patch / repack / --version / display audit 五项验证**——CLI Patch 在这四个版本上的实际效果**可能残**。如果用户装这四个版本后发现漏翻，请回报 issue
+- 升级窗口不等于"翻译质量"——L4 翻译表 `plugin/cli-translations.json` **未补**这四个版本可能新增的英文 UI 条目
+
 ## [2.5.0] - 2026-05-31
 
 ### 新增
