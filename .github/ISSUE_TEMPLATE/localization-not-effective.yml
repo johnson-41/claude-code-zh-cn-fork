@@ -61,7 +61,7 @@ body:
     attributes:
       label: 中文插件版本
       description: 优先从 doctor 输出里复制；本地源码安装也可以填 `git rev-parse --short HEAD` 或最新 release 版本。
-      placeholder: v2.4.27 / commit sha / 不确定
+      placeholder: v2.6.0 / commit sha / 不确定
     validations:
       required: true
 
