@@ -1,14 +1,14 @@
 <div align="center">
 
-# claude-code-zh-cn
+# claude-code-zh-cn-fork
 
 **Claude Code 界面汉化插件**
 
 让终端里的 AI 编程助手说中文
 
-[![GitHub](https://img.shields.io/badge/GitHub-KongBai1145%2Fclaude--code--zh--cn-blue?logo=github)](https://github.com/KongBai1145/claude-code-zh-cn)
+[![GitHub](https://img.shields.io/badge/GitHub-Lijianpeng-Arch%2Fclaude--code--zh--cn-fork-blue?logo=github)](https://github.com/Lijianpeng-Arch/claude-code-zh-cn-fork)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![Version](https://img.shields.io/github/v/tag/KongBai1145/claude-code-zh-cn?label=Version&color=blue)](https://github.com/KongBai1145/claude-code-zh-cn/releases)
+[![Version](https://img.shields.io/github/v/tag/Lijianpeng-Arch/claude-code-zh-cn-fork?label=Version&color=blue)](https://github.com/Lijianpeng-Arch/claude-code-zh-cn-fork/releases)
 
 **一键安装 · 自动更新 · 安全卸载 · Windows 可视化安装器**
 
@@ -37,15 +37,15 @@
 也可以命令行安装：
 
 ```powershell
-git clone https://github.com/KongBai1145/claude-code-zh-cn.git
-cd claude-code-zh-cn
+git clone https://github.com/Lijianpeng-Arch/claude-code-zh-cn-fork.git
+cd claude-code-zh-cn-fork
 .\install.ps1
 ```
 
 ### macOS / Linux
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/KongBai1145/claude-code-zh-cn/main/quick-install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Lijianpeng-Arch/claude-code-zh-cn-fork/main/quick-install.sh | bash
 ```
 
 安装脚本会自动检测系统和 Claude Code 版本，无需手动选择。
@@ -87,7 +87,7 @@ curl -fsSL https://raw.githubusercontent.com/KongBai1145/claude-code-zh-cn/main/
 手动更新：
 
 - **Windows**：双击 `install.bat` → 选择「更新汉化」
-- **macOS / Linux**：`cd claude-code-zh-cn && git pull && ./install.sh`
+- **macOS / Linux**：`cd claude-code-zh-cn-fork && git pull && ./install.sh`
 
 ---
 
@@ -184,7 +184,7 @@ macOS、Linux、Windows（PowerShell 5.1+ / WSL）。需要 Node.js。
 欢迎 PR！
 
 - 翻译改进 → 编辑 `tips/zh-CN.json` 或 `verbs/zh-CN.json`
-- Bug 反馈 → [提交 Issue](https://github.com/KongBai1145/claude-code-zh-cn/issues)
+- Bug 反馈 → [提交 Issue](https://github.com/Lijianpeng-Arch/claude-code-zh-cn-fork/issues)
 
 ---
 

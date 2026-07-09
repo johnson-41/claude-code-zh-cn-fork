@@ -2,7 +2,7 @@
 
 ## 给研究模型的任务
 
-请研究 `KongBai1145/claude-code-zh-cn` 是否应该、以及如何支持 Claude Code `2.1.113+` / latest 的 native binary 形态。
+请研究 `Lijianpeng-Arch/claude-code-zh-cn-fork` 是否应该、以及如何支持 Claude Code `2.1.113+` / latest 的 native binary 形态。
 
 重点不是泛泛讨论，而是给出可执行判断：
 
@@ -14,7 +14,7 @@
 
 ## 项目背景
 
-`claude-code-zh-cn` 是 Claude Code 界面汉化插件。
+`claude-code-zh-cn-fork` 是 Claude Code 界面汉化插件。
 
 旧版本 Claude Code 的 npm 包里有 `package/cli.js`，插件通过 `patch-cli.js` 替换其中的硬编码英文 UI 文案。
 

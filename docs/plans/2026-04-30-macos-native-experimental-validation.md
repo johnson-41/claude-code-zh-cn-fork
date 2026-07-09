@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Turn `claude-code-zh-cn` from an old `cli.js` patch-only plugin into a dual-engine plugin that can safely support verified Claude Code native binary versions, starting with macOS arm64.
+**Goal:** Turn `claude-code-zh-cn-fork` from an old `cli.js` patch-only plugin into a dual-engine plugin that can safely support verified Claude Code native binary versions, starting with macOS arm64.
 
 **Architecture:** Keep the existing `cli.js` path as the stable legacy engine for `2.1.92 - 2.1.112`. Add a separate native engine for Bun-packed binaries: detect native shape, extract embedded JS, reuse the same translation patcher, run sentinel checks, repack a temporary binary, validate it with an isolated HOME, and only then allow runtime patching for explicitly verified versions. Unknown native versions must skip cleanly instead of being patched on hope.
 
@@ -197,7 +197,7 @@ cd "$tmp"
 npm pack @anthropic-ai/claude-code-darwin-arm64@2.1.123
 tar -xzf anthropic-ai-claude-code-darwin-arm64-2.1.123.tgz
 file package/claude
-node /Users/changfenhuang/projects/claude-code-zh-cn/bun-binary-io.js detect package/claude
+node /Users/changfenhuang/projects/claude-code-zh-cn-fork/bun-binary-io.js detect package/claude
 HOME="$tmp/home" XDG_CONFIG_HOME="$tmp/home/.config" XDG_CACHE_HOME="$tmp/home/.cache" XDG_DATA_HOME="$tmp/home/.local/share" ./package/claude --version
 ```
 

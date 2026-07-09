@@ -87,7 +87,7 @@ gh release view vX.Y.Z --json tagName,url
 如果当前目录无法自动推断 GitHub 仓库，可以显式指定：
 
 ```bash
-node scripts/verify-release-state.js --github-repo KongBai1145/claude-code-zh-cn
+node scripts/verify-release-state.js --github-repo Lijianpeng-Arch/claude-code-zh-cn-fork
 ```
 
 ## 翻译数据规则
