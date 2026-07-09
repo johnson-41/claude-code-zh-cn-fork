@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 诊断 claude-code-zh-cn 安装状态，并给出可执行的下一步建议。
+# 诊断 claude-code-zh-cn-fork 安装状态，并给出可执行的下一步建议。
 # 用法: ./doctor.sh [--json]
 
 set -euo pipefail

@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# claude-code-zh-cn 卸载脚本
+# claude-code-zh-cn-fork 卸载脚本
 # 精准移除插件注入的设置，保留用户其他配置
 
 set -euo pipefail
 
 SETTINGS_FILE="$HOME/.claude/settings.json"
-PLUGIN_DST="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/claude-code-zh-cn}"
+PLUGIN_DST="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/claude-code-zh-cn-fork}"
 LAUNCHER_BIN_DIR="${ZH_CN_LAUNCHER_BIN_DIR:-$HOME/.claude/bin}"
 LAUNCHER_FILE="$LAUNCHER_BIN_DIR/claude"
 PROFILE_FILES_OVERRIDE="${ZH_CN_PROFILE_FILES:-}"
-PROFILE_MARKER_START="# >>> claude-code-zh-cn launcher >>>"
-PROFILE_MARKER_END="# <<< claude-code-zh-cn launcher <<<"
+PROFILE_MARKER_START="# >>> claude-code-zh-cn-fork launcher >>>"
+PROFILE_MARKER_END="# <<< claude-code-zh-cn-fork launcher <<<"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'

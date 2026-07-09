@@ -1,5 +1,5 @@
 ﻿#!/usr/bin/env pwsh
-# notification hook for claude-code-zh-cn (Windows PowerShell 版本)
+# notification hook for claude-code-zh-cn-fork (Windows PowerShell 版本)
 # 翻译常见通知消息为中文
 
 $rawInput = [Console]::In.ReadToEnd()

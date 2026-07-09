@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Remote bootstrap installer for claude-code-zh-cn.
+# Remote bootstrap installer for claude-code-zh-cn-fork.
 # Intended usage after being attached to the latest GitHub Release:
-#   curl -fsSL https://github.com/KongBai1145/claude-code-zh-cn/releases/latest/download/install-remote.sh | bash
+#   curl -fsSL https://github.com/Lijianpeng-Arch/claude-code-zh-cn-fork/releases/latest/download/install-remote.sh | bash
 
 set -euo pipefail
 
-REPO="${CCZH_REPO:-KongBai1145/claude-code-zh-cn}"
+REPO="${CCZH_REPO:-Lijianpeng-Arch/claude-code-zh-cn-fork}"
 # Release workflow replaces these placeholders before uploading this file as a Release Asset.
 EMBEDDED_REF="__CCZH_RELEASE_TAG__"
 EMBEDDED_COMMIT="__CCZH_RELEASE_COMMIT__"
-PLUGIN_DST="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/claude-code-zh-cn}"
+PLUGIN_DST="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/claude-code-zh-cn-fork}"
 INSTALLED_REF_FILE="$PLUGIN_DST/.installed-ref"
 INSTALLED_COMMIT_FILE="$PLUGIN_DST/.installed-commit"
 PATCH_TARGET_FILE="$PLUGIN_DST/.patched-target"
@@ -18,7 +18,7 @@ TMP_PARENT="${TMPDIR:-/tmp}"
 if [ ! -d "$TMP_PARENT" ] || [ ! -w "$TMP_PARENT" ]; then
   TMP_PARENT="/tmp"
 fi
-TMP_DIR="$(mktemp -d "$TMP_PARENT/claude-code-zh-cn.XXXXXX")"
+TMP_DIR="$(mktemp -d "$TMP_PARENT/claude-code-zh-cn-fork.XXXXXX")"
 
 cleanup() {
   rm -rf "$TMP_DIR"

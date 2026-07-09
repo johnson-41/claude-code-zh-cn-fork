@@ -73,7 +73,7 @@ run bash -n uninstall.sh
 run bash -n plugin/bin/claude-launcher
 run bash -n plugin/hooks/session-start
 run bash -n plugin/hooks/notification
-run bash -n plugin/profile/claude-code-zh-cn.sh
+run bash -n plugin/profile/claude-code-zh-cn-fork.sh
 
 step "JavaScript syntax check"
 run node --check bun-binary-io.js

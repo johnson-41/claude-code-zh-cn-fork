@@ -1,5 +1,5 @@
 #!/usr/bin/env pwsh
-# session-start hook for claude-code-zh-cn (Windows PowerShell 版本)
+# session-start hook for claude-code-zh-cn-fork (Windows PowerShell 版本)
 # 1. 注入中文上下文指令
 # 2. 检测插件 Release 更新并同步安装态
 # 3. 检测 cli.js 版本变更，自动重 patch
@@ -9,7 +9,7 @@ $ErrorActionPreference = "SilentlyContinue"
 $PluginRoot = if ($env:CLAUDE_PLUGIN_ROOT) {
     $env:CLAUDE_PLUGIN_ROOT
 } else {
-    "$env:USERPROFILE\.claude\plugins\claude-code-zh-cn"
+    "$env:USERPROFILE\.claude\plugins\claude-code-zh-cn-fork"
 }
 $MarkerFile = Join-Path $PluginRoot ".patched-version"
 $SourceRepoFile = Join-Path $PluginRoot ".source-repo"
@@ -246,7 +246,7 @@ if ($env:ZH_CN_DISABLE_AUTO_UPDATE -ne "1") {
             # 方式二：GitHub API fallback（无本地仓库或 git 获取失败时）
             if (-not $LatestTag -and $env:ZH_CN_NO_GITHUB_FALLBACK -ne "1") {
                 try {
-                    $apiUrl = "https://api.github.com/repos/KongBai1145/claude-code-zh-cn/releases/latest"
+                    $apiUrl = "https://api.github.com/repos/Lijianpeng-Arch/claude-code-zh-cn-fork/releases/latest"
                     $release = Invoke-RestMethod -Uri $apiUrl -TimeoutSec 15 -ErrorAction Stop
                     if ($release.tag_name) {
                         $LatestTag = $release.tag_name
@@ -274,7 +274,7 @@ if ($env:ZH_CN_DISABLE_AUTO_UPDATE -ne "1") {
                         # 方式二：从 GitHub 下载 tar.gz
                         if (-not $exported) {
                             try {
-                                $downloadUrl = "https://github.com/KongBai1145/claude-code-zh-cn/archive/refs/tags/${LatestTag}.tar.gz"
+                                $downloadUrl = "https://github.com/Lijianpeng-Arch/claude-code-zh-cn-fork/archive/refs/tags/${LatestTag}.tar.gz"
                                 $tarFile = Join-Path $stagingDir "release.tar.gz"
                                 Invoke-WebRequest -Uri $downloadUrl -OutFile $tarFile -TimeoutSec 30 -ErrorAction Stop
                                 tar -xzf $tarFile -C $stagingDir --strip-components=1 2>$null

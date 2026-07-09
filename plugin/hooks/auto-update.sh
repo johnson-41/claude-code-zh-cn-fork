@@ -83,7 +83,7 @@ fetch_latest_release_tag() {
 
     # 方式二：从 GitHub API 获取（无需本地仓库，可通过 ZH_CN_NO_GITHUB_FALLBACK=1 禁用）
     [ "${ZH_CN_NO_GITHUB_FALLBACK:-0}" = "1" ] && return
-    local repo_url="https://api.github.com/repos/KongBai1145/claude-code-zh-cn/releases/latest"
+    local repo_url="https://api.github.com/repos/Lijianpeng-Arch/claude-code-zh-cn-fork/releases/latest"
     if command -v curl &>/dev/null; then
         local tag
         tag="$(curl -s -m 15 "$repo_url" 2>/dev/null | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"v\?\([^"]*\)".*/v\1/' | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$')"
@@ -109,7 +109,7 @@ export_release_to_staging() {
     fi
 
     # 方式二：从 GitHub 下载（无需本地仓库）
-    local download_url="https://github.com/KongBai1145/claude-code-zh-cn/archive/refs/tags/${latest_tag}.tar.gz"
+    local download_url="https://github.com/Lijianpeng-Arch/claude-code-zh-cn-fork/archive/refs/tags/${latest_tag}.tar.gz"
     if command -v curl &>/dev/null; then
         curl -sL -m 30 "$download_url" 2>/dev/null | tar -xzf - -C "$staging_dir" --strip-components=1 2>/dev/null && return 0
     elif command -v wget &>/dev/null; then

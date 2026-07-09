@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # quick-install.sh - 一键安装 Claude Code 界面汉化插件
-# 用法: curl -fsSL https://raw.githubusercontent.com/KongBai1145/claude-code-zh-cn/main/quick-install.sh | bash
+# 用法: curl -fsSL https://raw.githubusercontent.com/Lijianpeng-Arch/claude-code-zh-cn-fork/main/quick-install.sh | bash
 
 set -euo pipefail
 
@@ -11,8 +11,8 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-REPO_URL="https://github.com/KongBai1145/claude-code-zh-cn.git"
-INSTALL_DIR="${ZH_CN_INSTALL_DIR:-$HOME/.claude/claude-code-zh-cn}"
+REPO_URL="https://github.com/Lijianpeng-Arch/claude-code-zh-cn-fork.git"
+INSTALL_DIR="${ZH_CN_INSTALL_DIR:-$HOME/.claude/claude-code-zh-cn-fork}"
 TEMP_DIR=""
 
 # 清理函数
@@ -107,7 +107,7 @@ main() {
     info "正在下载插件..."
 
     # 克隆仓库
-    if ! git clone --depth 1 "$REPO_URL" "$TEMP_DIR/claude-code-zh-cn" 2>/dev/null; then
+    if ! git clone --depth 1 "$REPO_URL" "$TEMP_DIR/claude-code-zh-cn-fork" 2>/dev/null; then
         error "错误：下载失败，请检查网络连接"
         echo "  也可以手动克隆："
         echo "  git clone $REPO_URL"
@@ -119,13 +119,13 @@ main() {
     # 运行安装脚本
     info "开始安装..."
     echo ""
-    cd "$TEMP_DIR/claude-code-zh-cn"
+    cd "$TEMP_DIR/claude-code-zh-cn-fork"
     bash install.sh
 
     # 复制到安装目录（可选，用于后续更新）
     if [ "${ZH_CN_KEEP_INSTALL_DIR:-0}" = "1" ]; then
         mkdir -p "$(dirname "$INSTALL_DIR")"
-        cp -r "$TEMP_DIR/claude-code-zh-cn" "$INSTALL_DIR"
+        cp -r "$TEMP_DIR/claude-code-zh-cn-fork" "$INSTALL_DIR"
         echo ""
         info "插件已保存到: $INSTALL_DIR"
         echo "  后续更新可运行：cd $INSTALL_DIR && git pull && ./install.sh"

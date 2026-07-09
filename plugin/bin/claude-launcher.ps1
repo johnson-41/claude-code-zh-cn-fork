@@ -17,7 +17,7 @@ try {
 }
 
 if (-not $realClaude) {
-    Write-Error "[claude-code-zh-cn] real claude executable not found"
+    Write-Error "[claude-code-zh-cn-fork] real claude executable not found"
     exit 127
 }
 

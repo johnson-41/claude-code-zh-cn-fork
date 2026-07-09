@@ -12,10 +12,10 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 # ======== 路径常量 ========
 $ScriptDir = $PSScriptRoot
 $SettingsFile = "$env:USERPROFILE\.claude\settings.json"
-if ($env:CLAUDE_PLUGIN_ROOT) { $PluginDst = $env:CLAUDE_PLUGIN_ROOT } else { $PluginDst = "$env:USERPROFILE\.claude\plugins\claude-code-zh-cn" }
+if ($env:CLAUDE_PLUGIN_ROOT) { $PluginDst = $env:CLAUDE_PLUGIN_ROOT } else { $PluginDst = "$env:USERPROFILE\.claude\plugins\claude-code-zh-cn-fork" }
 if ($env:ZH_CN_LAUNCHER_BIN_DIR) { $LauncherBinDir = $env:ZH_CN_LAUNCHER_BIN_DIR } else { $LauncherBinDir = "$env:USERPROFILE\.claude\bin" }
 $BackupDir = "$env:USERPROFILE\.claude\zh-cn-backup"
-$BackupZip = "$env:USERPROFILE\claude-code-zh-cn-backup.zip"
+$BackupZip = "$env:USERPROFILE\claude-code-zh-cn-fork-backup.zip"
 $TmpDir = "$env:TEMP\claude-zh-cn"
 New-Item -ItemType Directory -Force -Path $TmpDir | Out-Null
 

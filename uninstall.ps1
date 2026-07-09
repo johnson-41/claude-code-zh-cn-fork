@@ -1,5 +1,5 @@
 ﻿#!/usr/bin/env pwsh
-# claude-code-zh-cn Windows 卸载脚本 (PowerShell)
+# claude-code-zh-cn-fork Windows 卸载脚本 (PowerShell)
 # 精准移除插件注入的设置，保留用户其他配置
 # 移植自 uninstall.sh — 适配 Windows 原生环境
 
@@ -13,7 +13,7 @@ $SettingsFile = "$env:USERPROFILE\.claude\settings.json"
 $PluginDst = if ($env:CLAUDE_PLUGIN_ROOT) {
     $env:CLAUDE_PLUGIN_ROOT
 } else {
-    "$env:USERPROFILE\.claude\plugins\claude-code-zh-cn"
+    "$env:USERPROFILE\.claude\plugins\claude-code-zh-cn-fork"
 }
 $LauncherBinDir = if ($env:ZH_CN_LAUNCHER_BIN_DIR) {
     $env:ZH_CN_LAUNCHER_BIN_DIR

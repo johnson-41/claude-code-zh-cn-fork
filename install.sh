@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# claude-code-zh-cn 安装脚本
+# claude-code-zh-cn-fork 安装脚本
 # 将中文本地化设置合并到 Claude Code 的 settings.json
 
 set -euo pipefail
@@ -14,7 +14,7 @@ SETTINGS_FILE="$HOME/.claude/settings.json"
 BACKUP_FILE="$HOME/.claude/settings.json.zh-cn-backup.$(date +%Y%m%d%H%M%S)"
 OVERLAY_FILE="$SCRIPT_DIR/settings-overlay.json"
 PLUGIN_SRC="$SCRIPT_DIR/plugin"
-PLUGIN_DST="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/claude-code-zh-cn}"
+PLUGIN_DST="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/claude-code-zh-cn-fork}"
 MARKER_FILE="$PLUGIN_DST/.patched-version"
 SOURCE_REPO_FILE="$PLUGIN_DST/.source-repo"
 LAST_UPDATE_CHECK_FILE="$PLUGIN_DST/.last-update-check"
@@ -23,8 +23,8 @@ SKIP_BANNER="${ZH_CN_SKIP_BANNER:-0}"
 LAUNCHER_BIN_DIR="${ZH_CN_LAUNCHER_BIN_DIR:-$HOME/.claude/bin}"
 LAUNCHER_FILE="$LAUNCHER_BIN_DIR/claude"
 PROFILE_FILES_OVERRIDE="${ZH_CN_PROFILE_FILES:-}"
-PROFILE_MARKER_START="# >>> claude-code-zh-cn launcher >>>"
-PROFILE_MARKER_END="# <<< claude-code-zh-cn launcher <<<"
+PROFILE_MARKER_START="# >>> claude-code-zh-cn-fork launcher >>>"
+PROFILE_MARKER_END="# <<< claude-code-zh-cn-fork launcher <<<"
 CLI_PATCH_STATUS_SUMMARY="已跳过（未执行 CLI Patch）"
 CLI_PATCH_STATUS_OK=false
 
@@ -373,7 +373,7 @@ resolve_real_path() {
 }
 
 profile_source_line() {
-    local profile_script="$PLUGIN_DST/profile/claude-code-zh-cn.sh"
+    local profile_script="$PLUGIN_DST/profile/claude-code-zh-cn-fork.sh"
     printf '[ -f "%s" ] && . "%s"' "$profile_script" "$profile_script"
 }
 
@@ -458,7 +458,7 @@ install_launcher() {
     local source_launcher="$PLUGIN_DST/bin/claude-launcher"
     local target
 
-    if [ ! -f "$source_launcher" ] || [ ! -f "$PLUGIN_DST/profile/claude-code-zh-cn.sh" ]; then
+    if [ ! -f "$source_launcher" ] || [ ! -f "$PLUGIN_DST/profile/claude-code-zh-cn-fork.sh" ]; then
         echo -e "${YELLOW}launcher 文件缺失，已跳过 PATH 注入${NC}"
         return
     fi

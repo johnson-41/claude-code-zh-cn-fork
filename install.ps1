@@ -1,5 +1,5 @@
 ﻿#!/usr/bin/env pwsh
-# claude-code-zh-cn Windows 安装脚本 (PowerShell)
+# claude-code-zh-cn-fork Windows 安装脚本 (PowerShell)
 # 将中文本地化设置合并到 Claude Code 的 settings.json
 # 移植自 install.sh - 适配 Windows 原生环境
 # 支持 PowerShell 5.1+
@@ -18,7 +18,7 @@ $ScriptDir = $PSScriptRoot
 $SettingsFile = "$env:USERPROFILE\.claude\settings.json"
 $OverlayFile = "$ScriptDir\settings-overlay.json"
 $PluginSrc = "$ScriptDir\plugin"
-$PluginDst = "$env:USERPROFILE\.claude\plugins\claude-code-zh-cn"
+$PluginDst = "$env:USERPROFILE\.claude\plugins\claude-code-zh-cn-fork"
 if ($env:CLAUDE_PLUGIN_ROOT) { $PluginDst = $env:CLAUDE_PLUGIN_ROOT }
 $MarkerFile = "$PluginDst\.patched-version"
 $SourceRepoFile = "$PluginDst\.source-repo"
@@ -540,7 +540,7 @@ function write-metadata {
 function do-manual-backup {
     Write-Host ""
     Write-CN "正在备份..." Blue
-    $backupZip = "$env:USERPROFILE\claude-code-zh-cn-backup.zip"
+    $backupZip = "$env:USERPROFILE\claude-code-zh-cn-fork-backup.zip"
     $tmpBackup = Join-Path $env:TEMP "cczh-backup-$PID"
     if (Test-Path $tmpBackup) { Remove-Item -Recurse -Force $tmpBackup }
     New-Item -ItemType Directory -Force -Path $tmpBackup | Out-Null
