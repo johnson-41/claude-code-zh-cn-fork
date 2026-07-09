@@ -69,8 +69,8 @@ curl -fsSL https://raw.githubusercontent.com/KongBai1145/claude-code-zh-cn/main/
 | 安装方式 | 支持情况 |
 |----------|---------|
 | `npm install -g @anthropic-ai/claude-code` | ✅ 完整支持 |
-| macOS 官方安装器 (2.1.110 - 2.1.156) | ✅ experimental |
-| Windows 官方安装器 (2.1.113 - 2.1.153) | ✅ experimental |
+| macOS 官方安装器 (2.1.110 - 2.1.205) | ✅ experimental |
+| Windows 官方安装器 (2.1.113 - 2.1.205) | ✅ experimental |
 | Linux native (2.1.126) | ✅ experimental |
 | 其他版本 | ⚠️ 设置和 Hook 生效，UI 翻译可能不完整 |
 
