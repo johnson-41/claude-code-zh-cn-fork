@@ -2,7 +2,7 @@
   "name": "claude-code-zh-cn",
   "version": "2.6.0",
   "description": "Claude Code 界面汉化插件 — 简体中文 UI 翻译",
-  "author": "KongBai1145",
+  "author": "Lijianpeng-Arch",
   "license": "MIT",
   "hooks": "hooks.json",
   "outputStyles": [
