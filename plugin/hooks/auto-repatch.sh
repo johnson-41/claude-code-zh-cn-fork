@@ -2,6 +2,7 @@
 # auto-repatch.sh - 自动 patch 检测和修复逻辑
 # 检测 cli.js 版本变更，自动重 patch
 
+
 # 确保 UTF-8 locale（Cloud 环境默认可能为 C/POSIX，中文输出会乱码）
 export LC_ALL="${LC_ALL:-C.UTF-8}"
 export LANG="${LANG:-en_US.UTF-8}"
