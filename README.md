@@ -60,7 +60,7 @@ curl -fsSL https://raw.githubusercontent.com/Lijianpeng-Arch/claude-code-zh-cn-f
 | `Thinking...` | `思考中...` |
 | `Tip: Press Shift+Tab...` | `按 Shift+Tab 切换模式` |
 
-187 个趣味 spinner 动词，41 条中文提示，1742 条 UI 翻译。**装完即用，重启 Claude Code 生效。**
+187 个趣味 spinner 动词，41 条中文提示，1756 条 UI 翻译。**装完即用，重启 Claude Code 生效。**
 
 ---
 
@@ -69,8 +69,8 @@ curl -fsSL https://raw.githubusercontent.com/Lijianpeng-Arch/claude-code-zh-cn-f
 | 安装方式 | 支持情况 |
 |----------|---------|
 | `npm install -g @anthropic-ai/claude-code` | ✅ 完整支持 |
-| macOS 官方安装器 (2.1.110 - 2.1.205) | ✅ experimental |
-| Windows 官方安装器 (2.1.113 - 2.1.205) | ✅ experimental |
+| macOS 官方安装器 (2.1.110 - 2.1.207) | ✅ experimental |
+| Windows 官方安装器 (2.1.113 - 2.1.207) | ✅ experimental |
 | Linux native (2.1.126) | ✅ experimental |
 | 其他版本 | ⚠️ 设置和 Hook 生效，UI 翻译可能不完整 |
 
@@ -123,7 +123,7 @@ curl -fsSL https://raw.githubusercontent.com/Lijianpeng-Arch/claude-code-zh-cn-f
 |------|------|
 | **AI 中文回复** | 默认使用简体中文回复，技术术语保留英文 |
 | **187 个趣味动词** | `光合作用中`、`七荤八素中`、`蹦迪中`、`搞事业中`... |
-| **1742 条 UI 翻译** | 覆盖菜单、提示、快捷键、slash 命令、CLI 参数 |
+| **1756 条 UI 翻译** | 覆盖菜单、提示、快捷键、slash 命令、CLI 参数 |
 | **自动修复** | Claude Code 更新后自动检测并重新翻译 |
 | **自动更新** | 插件发布新版本后自动同步翻译 |
 | **Windows GUI** | 可视化安装器，双击 `install.bat` 即用 |
@@ -143,7 +143,7 @@ curl -fsSL https://raw.githubusercontent.com/Lijianpeng-Arch/claude-code-zh-cn-f
 1. **设置注入** — 修改 `settings.json`，设置语言和 spinner
 2. **Hook 系统** — 会话启动时注入中文上下文指令
 3. **插件系统** — 提供中文输出风格
-4. **CLI Patch** — 直接翻译 UI 硬编码文字（1742 条）
+4. **CLI Patch** — 直接翻译 UI 硬编码文字（1756 条）
 
 Layer 1-3 不受 Claude Code 更新影响，Layer 4 会自动重新翻译。
 

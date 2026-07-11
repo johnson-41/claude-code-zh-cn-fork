@@ -508,7 +508,7 @@
       "platform": "darwin-arm64",
       "packageName": "@anthropic-ai/claude-code-darwin-arm64",
       "floor": "2.1.113",
-      "ceiling": "2.1.205",
+      "ceiling": "2.1.207",
       "excluded": [
         "2.1.115",
         "2.1.125",
@@ -559,9 +559,11 @@
         "2.1.202",
         "2.1.203",
         "2.1.204",
-        "2.1.205"
+        "2.1.205",
+        "2.1.206",
+        "2.1.207"
       ],
-      "verification": "2.1.202 PENDING VERIFICATION — 由本机配置扩入，verification 待真机回填 · 2.1.203 PENDING VERIFICATION — 由本机配置扩入，verification 待真机回填 · 2.1.204 PENDING VERIFICATION — 由本机配置扩入，verification 待真机回填 · 2.1.205 PENDING VERIFICATION — 本次 macOS arm64 native 实验通道 ceiling 升至 2.1.205，verification 待真机回填 · 2.1.113 PASS(native 1358, display 11/11) · 2.1.114 PASS(native 1358, display 11/11) · 2.1.116 PASS(native 1351, display 11/11) · 2.1.117 PASS(native 1334, display 11/11) · 2.1.118 PASS(native 1323, display 11/11) · 2.1.119 PASS(native 1328, display 11/11) · 2.1.120 PASS(native 1331, display 11/11) · 2.1.121 PASS(native 1334, display 11/11) · 2.1.122 PASS(native 1334, display 11/11) · 2.1.123 PASS(native 1334, display 11/11) · 2.1.124 PASS(native 1331, display 11/11) · 2.1.126 PASS(native 1331, display 11/11) · 2.1.128 PASS(native 1331, display 11/11) · 2.1.129 PASS(native 1333, display 11/11) · 2.1.131 PASS(native 1333, display 11/11) · 2.1.132 PASS(native 1323, display 11/11) · 2.1.133 PASS(native 1323, display 11/11) · 2.1.136 PASS(native 1322, display 11/11) · 2.1.137 PASS(native 1322, display 11/11) · 2.1.138 PASS(native 1322, display 11/11) · 2.1.139 PASS(native 1324, display 11/11) · 2.1.140 PASS(native 1324, display 11/11) · 2.1.141 PASS(native 1324, display 11/11) · 2.1.142 PASS(native 1320, display 11/11) · 2.1.143 PASS(native 1326, display 11/11) · 2.1.144 PASS(native 1324, display 11/11) · 2.1.145 PASS(native 1324, display 11/11) · 2.1.146 PASS(native 1335, display 11/11) · 2.1.148 PASS(native 1333, display 11/11) · 2.1.150 PASS(native 1333, display 11/11) · 2.1.152 PASS(native 1343, display 11/11) · 2.1.153 PASS(native 1343, display 11/11) · 2.1.156 PASS(native 1385, display 11/11)",
+      "verification": "2.1.206 PENDING VERIFICATION — 由本机配置扩入，verification 待真机回填 · 2.1.207 PENDING VERIFICATION — 由本机配置扩入，verification 待真机回填 · 2.1.202 PENDING VERIFICATION — 由本机配置扩入，verification 待真机回填 · 2.1.203 PENDING VERIFICATION — 由本机配置扩入，verification 待真机回填 · 2.1.204 PENDING VERIFICATION — 由本机配置扩入，verification 待真机回填 · 2.1.205 PENDING VERIFICATION — 由本机配置扩入，verification 待真机回填 · 2.1.113 PASS(native 1358, display 11/11) · 2.1.114 PASS(native 1358, display 11/11) · 2.1.116 PASS(native 1351, display 11/11) · 2.1.117 PASS(native 1334, display 11/11) · 2.1.118 PASS(native 1323, display 11/11) · 2.1.119 PASS(native 1328, display 11/11) · 2.1.120 PASS(native 1331, display 11/11) · 2.1.121 PASS(native 1334, display 11/11) · 2.1.122 PASS(native 1334, display 11/11) · 2.1.123 PASS(native 1334, display 11/11) · 2.1.124 PASS(native 1331, display 11/11) · 2.1.126 PASS(native 1331, display 11/11) · 2.1.128 PASS(native 1331, display 11/11) · 2.1.129 PASS(native 1333, display 11/11) · 2.1.131 PASS(native 1333, display 11/11) · 2.1.132 PASS(native 1323, display 11/11) · 2.1.133 PASS(native 1323, display 11/11) · 2.1.136 PASS(native 1322, display 11/11) · 2.1.137 PASS(native 1322, display 11/11) · 2.1.138 PASS(native 1322, display 11/11) · 2.1.139 PASS(native 1324, display 11/11) · 2.1.140 PASS(native 1324, display 11/11) · 2.1.141 PASS(native 1324, display 11/11) · 2.1.142 PASS(native 1320, display 11/11) · 2.1.143 PASS(native 1326, display 11/11) · 2.1.144 PASS(native 1324, display 11/11) · 2.1.145 PASS(native 1324, display 11/11) · 2.1.146 PASS(native 1335, display 11/11) · 2.1.148 PASS(native 1333, display 11/11) · 2.1.150 PASS(native 1333, display 11/11) · 2.1.152 PASS(native 1343, display 11/11) · 2.1.153 PASS(native 1343, display 11/11) · 2.1.156 PASS(native 1385, display 11/11)",
       "requires": [
         "node-lief"
       ],
@@ -585,7 +587,7 @@
     },
     "windowsNativeExperimental": {
       "floor": "2.1.113",
-      "ceiling": "2.1.205",
+      "ceiling": "2.1.207",
       "platform": "win32-x64",
       "packageName": "@anthropic-ai/claude-code-win32-x64",
       "representatives": [
@@ -625,7 +627,9 @@
         "2.1.202",
         "2.1.203",
         "2.1.204",
-        "2.1.205"
+        "2.1.205",
+        "2.1.206",
+        "2.1.207"
       ],
       "excluded": [
         "2.1.115",
@@ -640,7 +644,7 @@
         "2.1.154",
         "2.1.155"
       ],
-      "verification": "2.1.202 PENDING VERIFICATION — 由本机配置扩入，verification 待真机回填 · 2.1.203 PENDING VERIFICATION — 由本机配置扩入，verification 待真机回填 · 2.1.204 PENDING VERIFICATION — 由本机配置扩入，verification 待真机回填 · 2.1.205 PENDING VERIFICATION — 由本机配置扩入，verification 待真机回填 · Windows native verification runs on pinned Windows runners with PE extract / patch / repack / --version / display audit",
+      "verification": "2.1.206 PENDING VERIFICATION — 由本机配置扩入，verification 待真机回填 · 2.1.207 PENDING VERIFICATION — 由本机配置扩入，verification 待真机回填 · 2.1.202 PENDING VERIFICATION — 由本机配置扩入，verification 待真机回填 · 2.1.203 PENDING VERIFICATION — 由本机配置扩入，verification 待真机回填 · 2.1.204 PENDING VERIFICATION — 由本机配置扩入，verification 待真机回填 · 2.1.205 PENDING VERIFICATION — 由本机配置扩入，verification 待真机回填 · Windows native verification runs on pinned Windows runners with PE extract / patch / repack / --version / display audit",
       "requires": [
         "node-lief"
       ],

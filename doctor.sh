@@ -2,6 +2,10 @@
 # 诊断 claude-code-zh-cn-fork 安装状态，并给出可执行的下一步建议。
 # 用法: ./doctor.sh [--json]
 
+# 确保 UTF-8 locale（Cloud 环境默认可能为 C/POSIX，中文输出会乱码）
+export LC_ALL="${LC_ALL:-C.UTF-8}"
+export LANG="${LANG:-en_US.UTF-8}"
+
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

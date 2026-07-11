@@ -2,6 +2,10 @@
 # claude-code-zh-cn-fork 卸载脚本
 # 精准移除插件注入的设置，保留用户其他配置
 
+# 确保 UTF-8 locale（Cloud 环境默认可能为 C/POSIX，中文输出会乱码）
+export LC_ALL="${LC_ALL:-C.UTF-8}"
+export LANG="${LANG:-en_US.UTF-8}"
+
 set -euo pipefail
 
 SETTINGS_FILE="$HOME/.claude/settings.json"

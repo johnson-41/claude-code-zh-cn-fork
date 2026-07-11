@@ -42,6 +42,7 @@ const versions = [
   ...(data.macosNativeOfficialInstallerExperimental?.versions || []),
   ...(data.macosNativeExperimental?.versions || []),
   ...(data.linuxNativeExperimental?.versions || []),
+  ...(data.windowsNativeExperimental?.versions || []),
 ];
 process.exit(versions.includes(version) ? 0 : 1);
 NODE

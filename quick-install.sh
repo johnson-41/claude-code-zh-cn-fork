@@ -2,6 +2,10 @@
 # quick-install.sh - 一键安装 Claude Code 界面汉化插件
 # 用法: curl -fsSL https://raw.githubusercontent.com/Lijianpeng-Arch/claude-code-zh-cn-fork/main/quick-install.sh | bash
 
+# 确保 UTF-8 locale（Cloud 环境默认可能为 C/POSIX，中文输出会乱码）
+export LC_ALL="${LC_ALL:-C.UTF-8}"
+export LANG="${LANG:-en_US.UTF-8}"
+
 set -euo pipefail
 
 # 颜色定义
