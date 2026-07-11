@@ -2,6 +2,10 @@
 # claude-code-zh-cn 安装脚本
 # 将中文本地化设置合并到 Claude Code 的 settings.json
 
+# 确保 UTF-8 locale（Cloud 环境默认可能为 C/POSIX，中文输出会乱码）
+export LC_ALL="${LC_ALL:-C.UTF-8}"
+export LANG="${LANG:-en_US.UTF-8}"
+
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

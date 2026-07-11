@@ -6,6 +6,25 @@
 - **次版本号**：新增功能或显著改进（比如新增 patch、新增翻译）
 - **修订号**：Bug 修复和小调整（比如修正一条翻译）
 
+## [2.7.0] - 2026-07-11
+
+### 新增
+
+- **native experimental 支持窗口扩到 Claude Code 2.1.206 - 2.1.207**：`scripts/upstream-compat.config.json` 中 `macosNativeExperimental.ceiling` 和 `windowsNativeExperimental.ceiling` 从 2.1.205 升至 2.1.207；两段 `representatives` 同步追加 2.1.206 和 2.1.207
+- **14 条新增 UI 翻译**：覆盖 Guest passes、Cowork、Cost limit 等 2.1.207 新增功能文案（翻译条目 1742 → 1756）
+
+### 修复
+
+- **修复 Bun 原生二进制 repack 后中文乱码（核心 Bug）**：`bun-binary-io.js` repack 时 Claude 主模块的 `encoding` 字段未重置为 UTF-8 (0)，导致 Bun 运行时用错误编码解读含中文的 JS 源码。新增 `JS_SOURCE_ENCODING_UTF8` 常量，对被修改的 Claude 模块强制设置 encoding=0
+- **修复 Cloud 环境中文输出乱码**：所有 hook 脚本（session-start、auto-repatch、notification）和安装脚本（install.sh、uninstall.sh、quick-install.sh、doctor.sh）添加 `LC_ALL`/`LANG` UTF-8 locale 防护，确保 Cloud 环境默认 locale 为 C/POSIX 时中文 heredoc 不被损坏
+- **修复 `patch-cli.js` 写入编码**：`fs.writeFileSync(tmp, s)` 改为 `fs.writeFileSync(tmp, s, "utf8")`，显式指定 UTF-8 编码
+- **修复 `is_supported_native_version` Windows 遗漏**：`plugin/lib/common.sh` 中的版本检查函数未包含 `windowsNativeExperimental` 版本列表，导致 Windows native 安装时版本检查失败
+
+### 已知限制
+
+- **2.1.206 - 2.1.207 未在真机完成 extract / patch / repack / --version / display audit 五项验证**——CLI Patch 在这两个版本上的实际效果可能存在遗漏翻译。如果用户装这两个版本后发现漏翻，请回报 issue
+- 升级窗口不等于"翻译质量"——L4 翻译表 `plugin/cli-translations.json` 可能未覆盖 2.1.207 所有可能新增的英文 UI 条目
+
 ## [2.6.0] - 2026-07-09
 
 ### 新增

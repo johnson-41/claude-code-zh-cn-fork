@@ -910,7 +910,7 @@ if (s === original) {
 }
 
 const tmp = cliFile + ".zh-cn-tmp";
-fs.writeFileSync(tmp, s);
+fs.writeFileSync(tmp, s, "utf8");
 const origMode = fs.statSync(cliFile).mode;
 fs.chmodSync(tmp, origMode);
 if (process.platform === "win32") {

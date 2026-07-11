@@ -28,6 +28,11 @@ const { execSync, execFileSync } = require("child_process");
 
 const BUN_TRAILER = Buffer.from("\n---- Bun! ----\n");
 const SIZEOF_OFFSETS = 32;
+
+// Bun 模块 encoding 字段：0 = UTF-8。
+// 当 Claude 主模块被 patch 为含中文字符的 JS 后，必须将 encoding 重置为 UTF-8 (0)，
+// 否则 Bun 运行时用原始 encoding 值解读 UTF-8 中文会产出乱码。
+const JS_SOURCE_ENCODING_UTF8 = 0;
 const SIZEOF_STRING_POINTER = 8;
 const SIZEOF_MODULE_OLD = 4 * SIZEOF_STRING_POINTER + 4; // 36
 const SIZEOF_MODULE_NEW = 6 * SIZEOF_STRING_POINTER + 4; // 52
@@ -364,7 +369,8 @@ function rebuildBunData(bunData, bunOffsets, modifiedClaudeJs, moduleStructSize)
     const nameBytes = getStringPointerContent(bunData, mod.name);
     const moduleName = nameBytes.toString("utf-8");
 
-    const contentsBytes = (modifiedClaudeJs && isClaudeModule(moduleName))
+    const isModifiedClaudeModule = !!(modifiedClaudeJs && isClaudeModule(moduleName));
+    const contentsBytes = isModifiedClaudeModule
       ? modifiedClaudeJs
       : getStringPointerContent(bunData, mod.contents);
     const sourcemapBytes = getStringPointerContent(bunData, mod.sourcemap);
@@ -375,7 +381,8 @@ function rebuildBunData(bunData, bunOffsets, modifiedClaudeJs, moduleStructSize)
     modulesMetadata.push({
       name: nameBytes, contents: contentsBytes, sourcemap: sourcemapBytes,
       bytecode: bytecodeBytes, moduleInfo: moduleInfoBytes, bytecodeOriginPath: bytecodeOriginPathBytes,
-      encoding: mod.encoding, loader: mod.loader, moduleFormat: mod.moduleFormat, side: mod.side,
+      encoding: isModifiedClaudeModule ? JS_SOURCE_ENCODING_UTF8 : mod.encoding,
+      loader: mod.loader, moduleFormat: mod.moduleFormat, side: mod.side,
     });
 
     if (moduleStructSize === SIZEOF_MODULE_NEW) {
