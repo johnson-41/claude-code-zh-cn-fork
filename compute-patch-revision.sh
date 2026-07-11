@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+
+# 确保 UTF-8 locale，防止中文输出乱码（尤其是 Cloud / CI 环境）
+export LC_ALL="${LC_ALL:-C.UTF-8}"
+export LANG="${LANG:-C.UTF-8}"
 compute_patch_revision() {
     local root="${1:?compute_patch_revision requires a root path}"
 

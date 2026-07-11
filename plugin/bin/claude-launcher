@@ -2,6 +2,10 @@
 
 set -uo pipefail
 
+# 确保 UTF-8 locale，防止中文输出乱码（尤其是 Cloud / CI 环境）
+export LC_ALL="${LC_ALL:-C.UTF-8}"
+export LANG="${LANG:-C.UTF-8}"
+
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude/plugins/claude-code-zh-cn}"
 MARKER_FILE="$PLUGIN_ROOT/.patched-version"
 LAUNCHER_BIN_DIR="$(cd "$(dirname "$0")" && pwd)"

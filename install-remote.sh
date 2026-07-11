@@ -5,6 +5,10 @@
 
 set -euo pipefail
 
+# 确保 UTF-8 locale，防止中文输出乱码（尤其是 Cloud / CI 环境）
+export LC_ALL="${LC_ALL:-C.UTF-8}"
+export LANG="${LANG:-C.UTF-8}"
+
 REPO="${CCZH_REPO:-Lijianpeng-Arch/claude-code-zh-cn-fork}"
 # Release workflow replaces these placeholders before uploading this file as a Release Asset.
 EMBEDDED_REF="__CCZH_RELEASE_TAG__"

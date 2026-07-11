@@ -8,6 +8,7 @@ export LANG="${LANG:-en_US.UTF-8}"
 
 set -euo pipefail
 
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 UPDATE_ONLY=false
 if [ "${1:-}" = "--update-only" ]; then
@@ -337,7 +338,7 @@ function deepMerge(base, override) {
 }
 
 const merged = deepMerge(settings, overlay);
-fs.writeFileSync(settingsFile, JSON.stringify(merged, null, 2) + '\n');
+fs.writeFileSync(settingsFile, JSON.stringify(merged, null, 2) + '\n', 'utf8');
 " "$SETTINGS_FILE" "$tmp_overlay" 2>/dev/null
         rm -f "$tmp_overlay"
     fi

@@ -2,6 +2,10 @@
 # auto-update.sh - 自动更新逻辑
 # 检测插件 Release 更新并同步安装态
 
+# 确保 UTF-8 locale，防止中文输出乱码（尤其是 Cloud / CI 环境）
+export LC_ALL="${LC_ALL:-C.UTF-8}"
+export LANG="${LANG:-C.UTF-8}"
+
 # 前置条件：调用方需设置以下变量
 # - PLUGIN_ROOT
 # - SOURCE_REPO_FILE

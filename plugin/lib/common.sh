@@ -3,6 +3,10 @@
 # 被 install.sh 和 hooks/session-start 共同引用
 # 前置条件：调用方需设置 $PLUGIN_ROOT 指向 plugin/ 目录
 
+# 确保 UTF-8 locale，防止中文输出乱码（尤其是 Cloud / CI 环境）
+export LC_ALL="${LC_ALL:-C.UTF-8}"
+export LANG="${LANG:-C.UTF-8}"
+
 native_binary_version() {
     local binary_path="$1"
     local version output temp_home
