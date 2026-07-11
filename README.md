@@ -1,4 +1,4 @@
-<div align="center">
+<div 对齐="center">
 
 # claude-code-zh-cn-fork
 
@@ -58,31 +58,31 @@ curl -fsSL https://raw.githubusercontent.com/Lijianpeng-Arch/claude-code-zh-cn-f
 |--------|--------|
 | `Photosynthesizing...` | `光合作用中...` |
 | `Thinking...` | `思考中...` |
-| `Tip: Press Shift+Tab...` | `按 Shift+Tab 切换模式` |
+| `提示：按 Shift+Tab...` | `按 Shift+Tab 切换模式` |
 
 187 个趣味 spinner 动词，41 条中文提示，1742 条 UI 翻译。**装完即用，重启 Claude Code 生效。**
 
 ---
 
-## 支持范围
+##支持范围
 
-| 安装方式 | 支持情况 |
+|对齐|支持情况|
 |----------|---------|
-| `npm install -g @anthropic-ai/claude-code` | ✅ 完整支持 |
-| macOS 官方安装器 (2.1.110 - 2.1.205) | ✅ experimental |
-| Windows 官方安装器 (2.1.113 - 2.1.205) | ✅ experimental |
-| Linux native (2.1.126) | ✅ experimental |
+`| `npm install -g @anthropic-ai/claude-code` | ✅ 完整支持 |
+| macOS 官方安装程序 (2.1.110 - 2.1.207) | ✅ 实验性 |
+| Windows 官方安装程序 (2.1.113 - 2.1.207) | ✅ 实验性 |
+| Linux 原生 (2.1.126) | ✅ 实验性 |
 | 其他版本 | ⚠️ 设置和 Hook 生效，UI 翻译可能不完整 |
 
 > node-lief 依赖会在安装时自动处理，无需手动安装。
 
 ---
 
-## 更新
+##更新
 
 插件每 6 小时自动检查上游翻译更新并同步。**无需手动操作。**
 
-禁用自动更新：设置环境变量 `ZH_CN_DISABLE_AUTO_UPDATE=1`
+关闭自动更新：设置环境变量 `ZH_CN_DISABLE_AUTO_UPDATE=1`
 
 手动更新：
 
@@ -91,7 +91,7 @@ curl -fsSL https://raw.githubusercontent.com/Lijianpeng-Arch/claude-code-zh-cn-f
 
 ---
 
-## 卸载
+##卸载
 
 - **Windows**：双击 `install.bat` → 选择「卸载所有汉化」
 - **macOS / Linux**：`./uninstall.sh`
@@ -105,9 +105,9 @@ curl -fsSL https://raw.githubusercontent.com/Lijianpeng-Arch/claude-code-zh-cn-f
 
 ---
 
-## 诊断
+##诊断
 
-安装后如有问题，运行诊断工具：
+如果安装后有问题，请运行诊断工具：
 
 ```bash
 ./doctor.sh
